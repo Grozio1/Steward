@@ -6,6 +6,7 @@ import { getProfile } from '../data/store';
 
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import SynthesisScreen from '../screens/onboarding/SynthesisScreen';
+import ProfileScreen from '../screens/profile/ProfileScreen';
 import MainNavigator from './MainNavigator';
 
 const Stack = createNativeStackNavigator();
@@ -34,12 +35,19 @@ export default function RootNavigator() {
       initialRouteName={initialRoute}
       screenOptions={{ headerShown: false, animation: 'fade' }}
     >
-      {/* Onboarding flow — always registered so we can navigate here after reset */}
+      {/* Onboarding flow */}
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="Synthesis" component={SynthesisScreen} />
 
       {/* Main app */}
       <Stack.Screen name="Main" component={MainNavigator} />
+
+      {/* Profile — modal slide from bottom */}
+      <Stack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
     </Stack.Navigator>
   );
 }

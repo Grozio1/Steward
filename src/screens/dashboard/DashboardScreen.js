@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -714,6 +715,10 @@ export default function DashboardScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const month = currentMonth();
 
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(16)).current;
+
   const load = useCallback(async () => {
     const debtActualsRaw = await AsyncStorage.getItem(`steward_debt_actuals_${month}`);
     const debtActualsData = debtActualsRaw ? JSON.parse(debtActualsRaw) : {};
@@ -777,7 +782,15 @@ export default function DashboardScreen({ navigation }) {
     }
   }, [month]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    load();
+    fadeAnim.setValue(0);
+    slideAnim.setValue(16);
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 350, useNativeDriver: true }),
+    ]).start();
+  }, [load]));
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -855,109 +868,98 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.forest} />}
-      >
-        {/* Header */}
-        <View style={styles.header}>
+
+      {/* Forest green header band */}
+      <View style={styles.forestHeader}>
+        <View style={styles.forestHeaderLeft}>
+          <FlameIcon size={20} bgColor="rgba(255,255,255,0.15)" />
           <View>
             <StewardText style={styles.greeting}>
               {profile?.name ? `Hello, ${profile.name}.` : 'Hello.'}
             </StewardText>
             <StewardText style={styles.monthLabel}>{monthLabel}</StewardText>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-            {/* DEV ONLY — remove before launch */}
-            <TouchableOpacity
-              style={styles.resetBtn}
-              onPress={() => {
-                Alert.alert(
-                  'Reset app?',
-                  'This clears all data and returns to onboarding. Dev only.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Reset',
-                      style: 'destructive',
-                      onPress: async () => {
-                        await AsyncStorage.clear();
-                        navigation.reset({ index: 0, routes: [{ name: 'Onboarding' }] });
-                      },
-                    },
-                  ]
-                );
-              }}
-            >
-              <StewardText style={styles.resetBtnLabel}>Reset</StewardText>
-            </TouchableOpacity>
-            <FlameIcon size={20} />
-          </View>
         </View>
+        <TouchableOpacity
+          style={styles.gearBtn}
+          onPress={() => navigation.navigate('Profile')}
+        >
+          <StewardText style={styles.gearLabel}>⚙</StewardText>
+        </TouchableOpacity>
+      </View>
 
-        {/* Daily observation */}
-        {observation ? (
-          <StewardCard variant="parchment" style={styles.observationCard}>
-            <StewardText style={styles.observationText}>{observation}</StewardText>
-          </StewardCard>
-        ) : null}
+      <Animated.View style={[{ flex: 1 }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.forest} />}
+        >
+          {/* Daily observation */}
+          {observation ? (
+            <StewardCard variant="parchment" style={styles.observationCard}>
+              <View style={styles.observationInner}>
+                <StewardText style={styles.observationFlame}>🔥</StewardText>
+                <StewardText style={styles.observationText}>{observation}</StewardText>
+              </View>
+            </StewardCard>
+          ) : null}
 
-        {/* Month summary */}
-        {plan && (
-          <StewardCard variant="forest" style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryItem}>
-                <StewardText style={styles.summaryValue}>{formatCurrency(plan.income)}</StewardText>
-                <StewardText style={styles.summaryItemLabel}>Income</StewardText>
+          {/* Month summary */}
+          {plan && (
+            <StewardCard variant="forest" style={styles.summaryCard}>
+              <View style={styles.summaryRow}>
+                <View style={styles.summaryItem}>
+                  <StewardText style={styles.summaryValue}>{formatCurrency(plan.income)}</StewardText>
+                  <StewardText style={styles.summaryItemLabel}>Income</StewardText>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryItem}>
+                  <StewardText style={styles.summaryValue}>{formatCurrency(totalSpent)}</StewardText>
+                  <StewardText style={styles.summaryItemLabel}>Spent</StewardText>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryItem}>
+                  <StewardText style={styles.summaryValue}>{formatCurrency(totalAllocated - totalSpent)}</StewardText>
+                  <StewardText style={styles.summaryItemLabel}>Left</StewardText>
+                </View>
               </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <StewardText style={styles.summaryValue}>{formatCurrency(totalSpent)}</StewardText>
-                <StewardText style={styles.summaryItemLabel}>Spent</StewardText>
-              </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <StewardText style={styles.summaryValue}>{formatCurrency(totalAllocated - totalSpent)}</StewardText>
-                <StewardText style={styles.summaryItemLabel}>Left</StewardText>
-              </View>
+            </StewardCard>
+          )}
+
+          {/* Allocation bars — tappable */}
+          {plan?.allocations?.length ? (
+            <View style={styles.section}>
+              <StewardText style={styles.sectionLabel}>YOUR PLAN</StewardText>
+              <StewardText style={styles.sectionHint}>Tap any row to see details</StewardText>
+              {plan.allocations.map((alloc, i) => (
+                <TouchableOpacity
+                  key={i}
+                  onPress={() => {
+                    if (alloc.layer === 'fixed') {
+                      setFixedModalVisible(true);
+                    } else if (alloc.layer === 'debt_floor') {
+                      setDebtModalVisible(true);
+                    } else if (alloc.layer === 'stability' || alloc.layer === 'debt_accelerator') {
+                      setTransferAllocation(alloc);
+                    } else {
+                      setDetailAllocation(alloc);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <AllocationBar allocation={alloc} />
+                </TouchableOpacity>
+              ))}
             </View>
-          </StewardCard>
-        )}
+          ) : (
+            <StewardCard style={styles.emptyCard}>
+              <StewardText style={styles.emptyText}>Your plan is being built. Pull to refresh.</StewardText>
+            </StewardCard>
+          )}
 
-        {/* Allocation bars — tappable */}
-        {plan?.allocations?.length ? (
-          <View style={styles.section}>
-            <StewardText style={styles.sectionLabel}>YOUR PLAN</StewardText>
-            <StewardText style={styles.sectionHint}>Tap any row to see or remove spends</StewardText>
-            {plan.allocations.map((alloc, i) => (
-              <TouchableOpacity
-                key={i}
-                onPress={() => {
-                  if (alloc.layer === 'fixed') {
-                    setFixedModalVisible(true);
-                  } else if (alloc.layer === 'debt_floor') {
-                    setDebtModalVisible(true);
-                  } else if (alloc.layer === 'stability' || alloc.layer === 'debt_accelerator') {
-                    setTransferAllocation(alloc);
-                  } else {
-                    setDetailAllocation(alloc);
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <AllocationBar allocation={alloc} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : (
-          <StewardCard style={styles.emptyCard}>
-            <StewardText style={styles.emptyText}>Your plan is being built. Pull to refresh.</StewardText>
-          </StewardCard>
-        )}
-
-        <View style={{ height: 80 }} />
-      </ScrollView>
+          <View style={{ height: 80 }} />
+        </ScrollView>
+      </Animated.View>
 
       {/* FAB */}
       <TouchableOpacity style={styles.fab} onPress={() => setLogVisible(true)} activeOpacity={0.85}>
@@ -1013,38 +1015,59 @@ export default function DashboardScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.parchment },
   content: { padding: SPACING.md, gap: SPACING.md, paddingBottom: SPACING.xxl },
-  header: {
+
+  // Forest header band
+  forestHeader: {
+    backgroundColor: COLORS.forest,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.sm,
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    paddingBottom: SPACING.lg,
+  },
+  forestHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
   },
   greeting: {
     fontFamily: FONTS.serif.bold,
-    fontSize: SIZES.xxl,
-    color: COLORS.hearth,
-    lineHeight: SIZES.xxl * 1.4,
+    fontSize: SIZES.xl,
+    color: COLORS.white,
+    lineHeight: SIZES.xl * 1.3,
   },
   monthLabel: {
     fontFamily: FONTS.sans.light,
     fontSize: SIZES.sm,
-    color: COLORS.placeholder,
-    marginTop: 2,
+    color: COLORS.white,
+    opacity: 0.6,
+    marginTop: 1,
   },
-  observationCard: { paddingVertical: SPACING.sm + 2 },
+  gearBtn: { padding: SPACING.sm },
+  gearLabel: { fontSize: SIZES.lg, color: COLORS.white, opacity: 0.7 },
+
+  // Observation card
+  observationCard: { paddingVertical: SPACING.md },
+  observationInner: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
+  observationFlame: { fontSize: SIZES.base, marginTop: 1 },
   observationText: {
     fontFamily: FONTS.sans.regular,
     fontSize: SIZES.base,
     color: COLORS.hearth,
     lineHeight: SIZES.base * 1.6,
+    flex: 1,
   },
+
+  // Summary
   summaryCard: { paddingVertical: SPACING.md },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
   summaryItem: { alignItems: 'center', flex: 1 },
-  summaryValue: { fontFamily: FONTS.sans.medium, fontSize: SIZES.lg, color: COLORS.white },
+  summaryValue: { fontFamily: FONTS.serif.bold, fontSize: SIZES.lg, color: COLORS.white },
   summaryItemLabel: { fontFamily: FONTS.sans.light, fontSize: SIZES.xs, color: '#9DC4AE', marginTop: 2 },
   summaryDivider: { width: 1, height: 32, backgroundColor: '#2A5C43' },
+
+  // Plan section
   section: { gap: SPACING.xs },
   sectionLabel: {
     fontFamily: FONTS.sans.medium,
@@ -1061,18 +1084,8 @@ const styles = StyleSheet.create({
   },
   emptyCard: { alignItems: 'center', paddingVertical: SPACING.xl },
   emptyText: { fontFamily: FONTS.sans.light, fontSize: SIZES.base, color: COLORS.placeholder, textAlign: 'center' },
-  resetBtn: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-  },
-  resetBtnLabel: {
-    fontFamily: FONTS.sans.light,
-    fontSize: SIZES.xs,
-    color: COLORS.placeholder,
-  },
+
+  // FAB
   fab: {
     position: 'absolute',
     bottom: SPACING.xl,
