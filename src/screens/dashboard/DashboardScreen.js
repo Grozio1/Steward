@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -10,13 +10,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
-import { getProfile, getPlan, getSpends, addSpend, currentMonth, formatCurrency, getTransfers, addTransfer, deleteTransfer, netTransferred } from '../../data/store';
-import { getDailyObservation } from '../../ai/stub';
+import { getProfile, getPlan, getSpends, addSpend, currentMonth, formatCurrency, getTransfers, addTransfer, deleteTransfer, netTransferred, savePlan, updateGoalBalance } from '../../data/store';
+import { getDailyObservation, generatePlan } from '../../ai/stub';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 import FlameIcon from '../../components/FlameIcon';
@@ -715,18 +714,13 @@ export default function DashboardScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const month = currentMonth();
 
-  // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(16)).current;
-
   const load = useCallback(async () => {
     const debtActualsRaw = await AsyncStorage.getItem(`steward_debt_actuals_${month}`);
     const debtActualsData = debtActualsRaw ? JSON.parse(debtActualsRaw) : {};
     setDebtActuals(debtActualsData);
 
-    const [p, pl, sp, obs, tr] = await Promise.all([
+    const [p, sp, obs, tr] = await Promise.all([
       getProfile(),
-      getPlan(month),
       getSpends(month),
       getDailyObservation(null),
       getTransfers(month),
@@ -735,6 +729,13 @@ export default function DashboardScreen({ navigation }) {
     setSpends(sp);
     setObservation(obs);
     setTransfers(tr);
+
+    // Auto-regenerate plan if profile is newer than plan or plan is missing
+    let pl = await getPlan(month);
+    if (p && (!pl || (p.updatedAt && pl.generatedAt && p.updatedAt > pl.generatedAt))) {
+      pl = await generatePlan(p);
+      await savePlan(pl, month);
+    }
 
     if (pl) {
       // Ensure adhoc layer exists — inject if plan was generated before it was added
@@ -763,7 +764,7 @@ export default function DashboardScreen({ navigation }) {
           );
           return { ...alloc, spent: totalPaid, items: itemsWithActuals };
         }
-        if (alloc.layer === 'stability' || alloc.layer === 'debt_accelerator') {
+        if (alloc.layer === 'stability' || alloc.layer === 'debt_accelerator' || alloc.layer?.startsWith('goal_')) {
           return { ...alloc, spent: Math.max(0, netTransferred(tr, alloc.layer)) };
         }
         if (alloc.layer === 'adhoc') {
@@ -782,15 +783,7 @@ export default function DashboardScreen({ navigation }) {
     }
   }, [month]);
 
-  useFocusEffect(useCallback(() => {
-    load();
-    fadeAnim.setValue(0);
-    slideAnim.setValue(16);
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 350, useNativeDriver: true }),
-    ]).start();
-  }, [load]));
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -853,12 +846,25 @@ export default function DashboardScreen({ navigation }) {
   const handleAddTransfer = async (transfer) => {
     const updated = await addTransfer(transfer, month);
     setTransfers(updated);
+    // Update goal saved balance if this is a goal layer
+    if (transfer.layer?.startsWith('goal_')) {
+      const goalId = transfer.layer.replace('goal_', '');
+      const delta = transfer.type === 'deposit' ? transfer.amount : -transfer.amount;
+      await updateGoalBalance(goalId, delta);
+    }
     await load();
   };
 
   const handleDeleteTransfer = async (transferId) => {
+    // Find the transfer before deleting so we can reverse the goal balance
+    const existing = transfers.find((t) => t.id === transferId);
     const updated = await deleteTransfer(transferId, month);
     setTransfers(updated);
+    if (existing?.layer?.startsWith('goal_')) {
+      const goalId = existing.layer.replace('goal_', '');
+      const delta = existing.type === 'deposit' ? -existing.amount : existing.amount;
+      await updateGoalBalance(goalId, delta);
+    }
     await load();
   };
 
@@ -868,98 +874,89 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-
-      {/* Forest green header band */}
-      <View style={styles.forestHeader}>
-        <View style={styles.forestHeaderLeft}>
-          <FlameIcon size={20} bgColor="rgba(255,255,255,0.15)" />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.forest} />}
+      >
+        {/* Header */}
+        <View style={styles.header}>
           <View>
             <StewardText style={styles.greeting}>
               {profile?.name ? `Hello, ${profile.name}.` : 'Hello.'}
             </StewardText>
             <StewardText style={styles.monthLabel}>{monthLabel}</StewardText>
           </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+            <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ padding: 4 }}>
+              <StewardText style={{ fontSize: 20, color: COLORS.sage }}>⚙</StewardText>
+            </TouchableOpacity>
+            <FlameIcon size={20} />
+          </View>
         </View>
-        <TouchableOpacity
-          style={styles.gearBtn}
-          onPress={() => navigation.navigate('Profile')}
-        >
-          <StewardText style={styles.gearLabel}>⚙</StewardText>
-        </TouchableOpacity>
-      </View>
 
-      <Animated.View style={[{ flex: 1 }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.forest} />}
-        >
-          {/* Daily observation */}
-          {observation ? (
-            <StewardCard variant="parchment" style={styles.observationCard}>
-              <View style={styles.observationInner}>
-                <StewardText style={styles.observationFlame}>🔥</StewardText>
-                <StewardText style={styles.observationText}>{observation}</StewardText>
+        {/* Daily observation */}
+        {observation ? (
+          <StewardCard variant="parchment" style={styles.observationCard}>
+            <StewardText style={styles.observationText}>{observation}</StewardText>
+          </StewardCard>
+        ) : null}
+
+        {/* Month summary */}
+        {plan && (
+          <StewardCard variant="forest" style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <StewardText style={styles.summaryValue}>{formatCurrency(plan.income)}</StewardText>
+                <StewardText style={styles.summaryItemLabel}>Income</StewardText>
               </View>
-            </StewardCard>
-          ) : null}
-
-          {/* Month summary */}
-          {plan && (
-            <StewardCard variant="forest" style={styles.summaryCard}>
-              <View style={styles.summaryRow}>
-                <View style={styles.summaryItem}>
-                  <StewardText style={styles.summaryValue}>{formatCurrency(plan.income)}</StewardText>
-                  <StewardText style={styles.summaryItemLabel}>Income</StewardText>
-                </View>
-                <View style={styles.summaryDivider} />
-                <View style={styles.summaryItem}>
-                  <StewardText style={styles.summaryValue}>{formatCurrency(totalSpent)}</StewardText>
-                  <StewardText style={styles.summaryItemLabel}>Spent</StewardText>
-                </View>
-                <View style={styles.summaryDivider} />
-                <View style={styles.summaryItem}>
-                  <StewardText style={styles.summaryValue}>{formatCurrency(totalAllocated - totalSpent)}</StewardText>
-                  <StewardText style={styles.summaryItemLabel}>Left</StewardText>
-                </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryItem}>
+                <StewardText style={styles.summaryValue}>{formatCurrency(totalSpent)}</StewardText>
+                <StewardText style={styles.summaryItemLabel}>Spent</StewardText>
               </View>
-            </StewardCard>
-          )}
-
-          {/* Allocation bars — tappable */}
-          {plan?.allocations?.length ? (
-            <View style={styles.section}>
-              <StewardText style={styles.sectionLabel}>YOUR PLAN</StewardText>
-              <StewardText style={styles.sectionHint}>Tap any row to see details</StewardText>
-              {plan.allocations.map((alloc, i) => (
-                <TouchableOpacity
-                  key={i}
-                  onPress={() => {
-                    if (alloc.layer === 'fixed') {
-                      setFixedModalVisible(true);
-                    } else if (alloc.layer === 'debt_floor') {
-                      setDebtModalVisible(true);
-                    } else if (alloc.layer === 'stability' || alloc.layer === 'debt_accelerator') {
-                      setTransferAllocation(alloc);
-                    } else {
-                      setDetailAllocation(alloc);
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <AllocationBar allocation={alloc} />
-                </TouchableOpacity>
-              ))}
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryItem}>
+                <StewardText style={styles.summaryValue}>{formatCurrency(totalAllocated - totalSpent)}</StewardText>
+                <StewardText style={styles.summaryItemLabel}>Left</StewardText>
+              </View>
             </View>
-          ) : (
-            <StewardCard style={styles.emptyCard}>
-              <StewardText style={styles.emptyText}>Your plan is being built. Pull to refresh.</StewardText>
-            </StewardCard>
-          )}
+          </StewardCard>
+        )}
 
-          <View style={{ height: 80 }} />
-        </ScrollView>
-      </Animated.View>
+        {/* Allocation bars — tappable */}
+        {plan?.allocations?.length ? (
+          <View style={styles.section}>
+            <StewardText style={styles.sectionLabel}>YOUR PLAN</StewardText>
+            <StewardText style={styles.sectionHint}>Tap any row to see or remove spends</StewardText>
+            {plan.allocations.map((alloc, i) => (
+              <TouchableOpacity
+                key={i}
+                onPress={() => {
+                  if (alloc.layer === 'fixed') {
+                    setFixedModalVisible(true);
+                  } else if (alloc.layer === 'debt_floor') {
+                    setDebtModalVisible(true);
+                  } else if (alloc.layer === 'stability' || alloc.layer === 'debt_accelerator' || alloc.layer?.startsWith('goal_')) {
+                    setTransferAllocation(alloc);
+                  } else {
+                    setDetailAllocation(alloc);
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <AllocationBar allocation={alloc} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <StewardCard style={styles.emptyCard}>
+            <StewardText style={styles.emptyText}>Your plan is being built. Pull to refresh.</StewardText>
+          </StewardCard>
+        )}
+
+        <View style={{ height: 80 }} />
+      </ScrollView>
 
       {/* FAB */}
       <TouchableOpacity style={styles.fab} onPress={() => setLogVisible(true)} activeOpacity={0.85}>
@@ -1015,59 +1012,38 @@ export default function DashboardScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.parchment },
   content: { padding: SPACING.md, gap: SPACING.md, paddingBottom: SPACING.xxl },
-
-  // Forest header band
-  forestHeader: {
-    backgroundColor: COLORS.forest,
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    paddingBottom: SPACING.lg,
-  },
-  forestHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
+    alignItems: 'flex-start',
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
   },
   greeting: {
     fontFamily: FONTS.serif.bold,
-    fontSize: SIZES.xl,
-    color: COLORS.white,
-    lineHeight: SIZES.xl * 1.3,
+    fontSize: SIZES.xxl,
+    color: COLORS.hearth,
+    lineHeight: SIZES.xxl * 1.4,
   },
   monthLabel: {
     fontFamily: FONTS.sans.light,
     fontSize: SIZES.sm,
-    color: COLORS.white,
-    opacity: 0.6,
-    marginTop: 1,
+    color: COLORS.placeholder,
+    marginTop: 2,
   },
-  gearBtn: { padding: SPACING.sm },
-  gearLabel: { fontSize: SIZES.lg, color: COLORS.white, opacity: 0.7 },
-
-  // Observation card
-  observationCard: { paddingVertical: SPACING.md },
-  observationInner: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
-  observationFlame: { fontSize: SIZES.base, marginTop: 1 },
+  observationCard: { paddingVertical: SPACING.sm + 2 },
   observationText: {
     fontFamily: FONTS.sans.regular,
     fontSize: SIZES.base,
     color: COLORS.hearth,
     lineHeight: SIZES.base * 1.6,
-    flex: 1,
   },
-
-  // Summary
   summaryCard: { paddingVertical: SPACING.md },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
   summaryItem: { alignItems: 'center', flex: 1 },
-  summaryValue: { fontFamily: FONTS.serif.bold, fontSize: SIZES.lg, color: COLORS.white },
+  summaryValue: { fontFamily: FONTS.sans.medium, fontSize: SIZES.lg, color: COLORS.white },
   summaryItemLabel: { fontFamily: FONTS.sans.light, fontSize: SIZES.xs, color: '#9DC4AE', marginTop: 2 },
   summaryDivider: { width: 1, height: 32, backgroundColor: '#2A5C43' },
-
-  // Plan section
   section: { gap: SPACING.xs },
   sectionLabel: {
     fontFamily: FONTS.sans.medium,
@@ -1084,8 +1060,6 @@ const styles = StyleSheet.create({
   },
   emptyCard: { alignItems: 'center', paddingVertical: SPACING.xl },
   emptyText: { fontFamily: FONTS.sans.light, fontSize: SIZES.base, color: COLORS.placeholder, textAlign: 'center' },
-
-  // FAB
   fab: {
     position: 'absolute',
     bottom: SPACING.xl,
