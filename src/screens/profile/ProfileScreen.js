@@ -204,6 +204,18 @@ function InvestmentRow({ item, onChange, onRemove }) {
           ))}
         </View>
       </ScrollView>
+      <TouchableOpacity
+        style={s.payrollToggleRow}
+        onPress={() => onChange({ ...item, payrollDeducted: !item.payrollDeducted })}
+        activeOpacity={0.7}
+      >
+        <StewardText style={s.payrollToggleLabel}>Deducted from paycheck automatically</StewardText>
+        <View style={[s.payrollTogglePill, item.payrollDeducted && s.payrollTogglePillActive]}>
+          <StewardText style={[s.payrollTogglePillLabel, item.payrollDeducted && s.payrollTogglePillLabelActive]}>
+            {item.payrollDeducted ? 'Yes' : 'No'}
+          </StewardText>
+        </View>
+      </TouchableOpacity>
       <View style={s.listRow}>
         <View style={[s.listAmountWrap, { flex: 1 }]}>
           <StewardText style={s.listFieldLabel}>Monthly $</StewardText>
@@ -536,7 +548,7 @@ export default function ProfileScreen({ navigation }) {
             ))}
             <AddBtn
               label="Add investment"
-              onPress={() => setInvestments([...investments, { id: Date.now().toString(), name: '', type: '401k', monthlyContribution: 0, balance: 0, employerMatch: 0 }])}
+              onPress={() => setInvestments([...investments, { id: Date.now().toString(), name: '', type: '401k', monthlyContribution: 0, balance: 0, employerMatch: 0, payrollDeducted: true }])}
             />
           </Section>
 
@@ -771,6 +783,39 @@ const s = StyleSheet.create({
     fontFamily: FONTS.sans.regular,
     fontSize: SIZES.sm,
     color: COLORS.placeholder,
+  },
+
+  payrollToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.sm,
+  },
+  payrollToggleLabel: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.xs,
+    color: COLORS.sage,
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  payrollTogglePill: {
+    paddingVertical: 3,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  payrollTogglePillActive: {
+    backgroundColor: COLORS.forest,
+    borderColor: COLORS.forest,
+  },
+  payrollTogglePillLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.xs,
+    color: COLORS.placeholder,
+  },
+  payrollTogglePillLabelActive: {
+    color: COLORS.white,
   },
 
   typePill: {

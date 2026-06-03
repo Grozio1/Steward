@@ -122,6 +122,9 @@ export async function generatePlan(profile) {
     if (inv.type === '401k' && Number(inv.employerMatch) > 0) {
       note += ` · Employer matches ${inv.employerMatch}%`;
     }
+    if (inv.payrollDeducted) {
+      note += ' · Pre-tax / payroll deducted';
+    }
     allocations.push({
       layer: `investment_${inv.id}`,
       name: inv.name,
@@ -131,7 +134,9 @@ export async function generatePlan(profile) {
       investmentId: inv.id,
       investmentType: inv.type,
     });
-    remaining -= monthly;
+    if (!inv.payrollDeducted) {
+      remaining -= monthly;
+    }
   }
 
   // Layer 3 — Debt accelerator (if high-rate debt exists and there's room)
