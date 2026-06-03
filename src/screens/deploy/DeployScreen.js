@@ -15,8 +15,31 @@ import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
 import { getProfile, getPlan, savePlan, currentMonth, formatCurrency } from '../../data/store';
 import { generatePlan } from '../../ai/stub';
+import { Ionicons } from '@expo/vector-icons';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
+
+// ─── Section groupings ────────────────────────────────────────────────────────────
+const SECTIONS = [
+  {
+    key: 'foundation',
+    label: 'FOUNDATION LAYERS',
+    lockIcon: true,
+    match: (a) => a.layer === 'fixed' || a.layer === 'debt_floor',
+  },
+  {
+    key: 'strategic',
+    label: 'STRATEGIC LAYERS',
+    lockIcon: false,
+    match: (a) => a.layer === 'debt_accelerator' || a.layer === 'stability' || (a.layer || '').startsWith('goal_'),
+  },
+  {
+    key: 'life',
+    label: 'LIFE BUCKETS',
+    lockIcon: false,
+    match: (a) => a.layer === 'food' || a.layer === 'qol' || a.layer === 'adhoc',
+  },
+];
 
 // ─── Layer config ────────────────────────────────────────────────────────────────
 const LAYER_META = {
@@ -249,24 +272,43 @@ export default function DeployScreen() {
               </StewardCard>
             )}
 
-            {/* Allocation rows */}
-            <StewardText style={s.sectionLabel}>ALLOCATIONS</StewardText>
-            {allocations.map((alloc, i) => (
-              <AllocationRow
-                key={i}
-                alloc={alloc}
-                editing={editingIndex === i}
-                confirmed={confirmed}
-                onEdit={() => setEditingIndex(i)}
-                onAmountChange={(text) => handleAmountChange(text, i)}
-                onDone={() => handleDone(i)}
-              />
-            ))}
+            {/* Allocation rows — grouped by section */}
+            {SECTIONS.map((section) => {
+              const sectionAllocs = allocations.filter(section.match);
+              if (sectionAllocs.length === 0) return null;
+              return (
+                <View key={section.key} style={s.sectionGroup}>
+                  <View style={s.sectionHeader}>
+                    <StewardText style={s.sectionLabel}>{section.label}</StewardText>
+                    {section.lockIcon && (
+                      <Ionicons name="lock-closed-outline" size={11} color={COLORS.sage} style={{ marginTop: 1 }} />
+                    )}
+                  </View>
+                  {sectionAllocs.map((alloc) => {
+                    const i = allocations.indexOf(alloc);
+                    return (
+                      <AllocationRow
+                        key={i}
+                        alloc={alloc}
+                        editing={editingIndex === i}
+                        confirmed={confirmed}
+                        onEdit={() => setEditingIndex(i)}
+                        onAmountChange={(text) => handleAmountChange(text, i)}
+                        onDone={() => handleDone(i)}
+                      />
+                    );
+                  })}
+                </View>
+              );
+            })}
 
             {/* Locked explanation */}
-            <StewardText style={s.lockNote}>
-              🔒 Locked rows are calculated from your profile and can only be changed there.
-            </StewardText>
+            <View style={s.lockNoteRow}>
+              <Ionicons name="lock-closed-outline" size={11} color={COLORS.placeholder} />
+              <StewardText style={s.lockNote}>
+                Locked rows are calculated from your profile and can only be changed there.
+              </StewardText>
+            </View>
 
             {/* Confirm button */}
             {!confirmed && (
@@ -386,21 +428,34 @@ const s = StyleSheet.create({
     lineHeight: SIZES.sm * 1.6,
   },
 
+  sectionGroup: {
+    marginBottom: SPACING.sm,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
   sectionLabel: {
     fontFamily: FONTS.sans.medium,
     fontSize: SIZES.xs,
     color: COLORS.sage,
     letterSpacing: 1.2,
-    marginBottom: SPACING.sm,
   },
 
+  lockNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    justifyContent: 'center',
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.lg,
+  },
   lockNote: {
     fontFamily: FONTS.sans.regular,
     fontSize: SIZES.xs,
     color: COLORS.placeholder,
-    textAlign: 'center',
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.lg,
     lineHeight: SIZES.xs * 1.6,
   },
 

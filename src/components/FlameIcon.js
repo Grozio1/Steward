@@ -24,15 +24,15 @@ export default function FlameIcon({ size = 28 }) {
     Z
   `;
 
-  // Inner highlight — smaller teardrop, slightly right of center
+  // Inner highlight — symmetric teardrop, tip centered lower than outer flame tip
   const innerPath = `
-    M 50 76
-    C 40 76 34 68 34 60
-    C 34 54 38 50 42 46
-    C 42 52 46 56 46 56
-    C 48 50 50 44 52 40
-    C 56 46 62 52 62 60
-    C 62 68 60 76 50 76
+    M 50 78
+    C 42 78 36 71 36 64
+    C 36 57 41 51 46 47
+    C 48 45 49 43 50 41
+    C 51 43 52 45 54 47
+    C 59 51 64 57 64 64
+    C 64 71 58 78 50 78
     Z
   `;
 
@@ -53,7 +53,7 @@ export default function FlameIcon({ size = 28 }) {
         viewBox="0 0 100 100"
       >
         <Path d={flamePath} fill={COLORS.ember} />
-        <Path d={innerPath} fill="#E8A85A" opacity="0.7" />
+        <Path d={innerPath} fill={COLORS.emberLight} opacity="0.65" />
       </Svg>
     </View>
   );

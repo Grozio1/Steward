@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     color: COLORS.placeholder,
   },
   track: {
-    height: 5,
+    height: 10,
     backgroundColor: COLORS.border,
     borderRadius: RADIUS.full,
     overflow: 'hidden',

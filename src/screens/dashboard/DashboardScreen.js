@@ -875,31 +875,35 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      {/* Forest header bar */}
+      <View style={styles.forestHeader}>
+        <View style={styles.forestHeaderLeft}>
+          <FlameIcon size={20} />
+          <StewardText style={styles.wordmark}>Steward</StewardText>
+        </View>
+        <View style={styles.forestHeaderRight}>
+          <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ padding: 4 }}>
+            <Ionicons name="settings-outline" size={22} color="rgba(255,255,255,0.65)" />
+          </TouchableOpacity>
+          <FlameIcon size={20} />
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.forest} />}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <StewardText style={styles.greeting}>
-              {profile?.name ? `Hello, ${profile.name}.` : 'Hello.'}
-            </StewardText>
-            <StewardText style={styles.monthLabel}>{monthLabel}</StewardText>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-            <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ padding: 4 }}>
-              <Ionicons name="settings-outline" size={22} color={COLORS.sage} />
-            </TouchableOpacity>
-            <FlameIcon size={20} />
-          </View>
-        </View>
+        {/* Month label */}
+        <StewardText style={styles.monthLabel}>{monthLabel}</StewardText>
 
         {/* Daily observation */}
         {observation ? (
           <StewardCard variant="parchment" style={styles.observationCard}>
-            <StewardText style={styles.observationText}>{observation}</StewardText>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm }}>
+              <StewardText style={styles.spark}>✦</StewardText>
+              <StewardText style={[styles.observationText, { flex: 1 }]}>{observation}</StewardText>
+            </View>
           </StewardCard>
         ) : null}
 
@@ -1013,30 +1017,45 @@ export default function DashboardScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.parchment },
   content: { padding: SPACING.md, gap: SPACING.md, paddingBottom: SPACING.xxl },
-  header: {
+  forestHeader: {
+    backgroundColor: COLORS.forest,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.sm,
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
   },
-  greeting: {
+  forestHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  forestHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  wordmark: {
     fontFamily: FONTS.serif.bold,
-    fontSize: SIZES.xxl,
-    color: COLORS.hearth,
-    lineHeight: SIZES.xxl * 1.4,
+    fontSize: SIZES.lg,
+    color: COLORS.white,
+    lineHeight: SIZES.lg * 1.3,
   },
   monthLabel: {
     fontFamily: FONTS.sans.light,
     fontSize: SIZES.sm,
     color: COLORS.placeholder,
-    marginTop: 2,
   },
   observationCard: { paddingVertical: SPACING.sm + 2 },
   observationText: {
     fontFamily: FONTS.sans.regular,
     fontSize: SIZES.base,
     color: COLORS.hearth,
+    lineHeight: SIZES.base * 1.6,
+  },
+  spark: {
+    fontSize: SIZES.base,
+    color: COLORS.ember,
     lineHeight: SIZES.base * 1.6,
   },
   summaryCard: { paddingVertical: SPACING.md },

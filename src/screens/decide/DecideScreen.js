@@ -307,7 +307,10 @@ export default function DecideScreen() {
 
                   {/* Insight */}
                   <StewardCard variant="parchment" style={s.insightCard}>
-                    <StewardText style={s.insightText}>{result.insight}</StewardText>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm }}>
+                      <StewardText style={s.spark}>✦</StewardText>
+                      <StewardText style={[s.insightText, { flex: 1 }]}>{result.insight}</StewardText>
+                    </View>
                   </StewardCard>
 
                   {/* Paths */}
@@ -445,6 +448,11 @@ const s = StyleSheet.create({
     fontFamily: FONTS.sans.regular,
     fontSize: SIZES.base,
     color: COLORS.hearth,
+    lineHeight: SIZES.base * 1.7,
+  },
+  spark: {
+    fontSize: SIZES.base,
+    color: COLORS.ember,
     lineHeight: SIZES.base * 1.7,
   },
 
