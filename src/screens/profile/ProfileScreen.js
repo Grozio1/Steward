@@ -68,12 +68,39 @@ function PillRow({ options, selected, onSelect }) {
 }
 
 // ─── Commitment row ──────────────────────────────────────────────────────────────
+const FREQ_OPTIONS = [
+  { label: 'Monthly', value: 'monthly' },
+  { label: 'Quarterly', value: 'quarterly' },
+  { label: 'Semi-annual', value: 'semi-annual' },
+  { label: 'Annual', value: 'annual' },
+];
+const FREQ_DIVISOR = { monthly: 1, quarterly: 3, 'semi-annual': 6, annual: 12 };
+
 function CommitmentRow({ item, onChange, onRemove }) {
+  const freq = item.frequency || 'monthly';
+  const divisor = FREQ_DIVISOR[freq] || 1;
+
+  const handleAmountChange = (v) => {
+    const raw = Number(v.replace(/[^0-9]/g, ''));
+    onChange({ ...item, amount: raw, monthlyAmount: divisor === 1 ? raw : Math.round(raw / divisor) });
+  };
+
+  const handleFreqChange = (f) => {
+    const div = FREQ_DIVISOR[f] || 1;
+    onChange({ ...item, frequency: f, monthlyAmount: div === 1 ? (item.amount || 0) : Math.round((item.amount || 0) / div) });
+  };
+
+  const amtLabel = freq === 'monthly' ? 'Monthly $'
+    : freq === 'quarterly' ? 'Quarterly total $'
+    : freq === 'semi-annual' ? 'Semi-annual total $'
+    : 'Annual total $';
+
   return (
     <StewardCard style={s.listCard}>
-      <View style={s.listRow}>
+      {/* 1 — Name + Done */}
+      <View style={[s.listRow, { marginBottom: SPACING.sm }]}>
         <TextInput
-          style={[s.listInput, { flex: 2 }]}
+          style={[s.listInput, { flex: 1 }]}
           value={item.name}
           onChangeText={(v) => onChange({ ...item, name: v })}
           placeholder="e.g. Rent"
@@ -81,23 +108,64 @@ function CommitmentRow({ item, onChange, onRemove }) {
           returnKeyType="done"
           onSubmitEditing={() => Keyboard.dismiss()}
         />
-        <View style={s.listAmountWrap}>
-          <StewardText style={s.listDollar}>$</StewardText>
-          <TextInput
-            style={s.listInput}
-            value={item.amount ? String(item.amount) : ''}
-            onChangeText={(v) => onChange({ ...item, amount: Number(v.replace(/[^0-9]/g, '')) })}
-            keyboardType="number-pad"
-            placeholder="0"
-            placeholderTextColor={COLORS.placeholder}
-            returnKeyType="done"
-            onSubmitEditing={() => Keyboard.dismiss()}
-          />
+        <TouchableOpacity onPress={() => Keyboard.dismiss()} style={{ paddingLeft: SPACING.sm }}>
+          <StewardText style={s.doneLabel}>Done</StewardText>
+        </TouchableOpacity>
+      </View>
+
+      {/* 2 — Frequency pills */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: SPACING.sm }}>
+        <View style={{ flexDirection: 'row', gap: SPACING.xs }}>
+          {FREQ_OPTIONS.map((opt) => (
+            <TouchableOpacity
+              key={opt.value}
+              style={[s.typePill, freq === opt.value && s.typePillActive]}
+              onPress={() => handleFreqChange(opt.value)}
+            >
+              <StewardText style={[s.typePillLabel, freq === opt.value && s.typePillLabelActive]}>
+                {opt.label}
+              </StewardText>
+            </TouchableOpacity>
+          ))}
         </View>
+      </ScrollView>
+
+      {/* 3 — Variable toggle */}
+      <TouchableOpacity
+        style={[s.payrollToggleRow, { marginBottom: SPACING.sm }]}
+        onPress={() => onChange({ ...item, variable: !item.variable })}
+        activeOpacity={0.7}
+      >
+        <StewardText style={s.payrollToggleLabel}>Amount varies month to month</StewardText>
+        <View style={[s.payrollTogglePill, item.variable && s.payrollTogglePillActive]}>
+          <StewardText style={[s.payrollTogglePillLabel, item.variable && s.payrollTogglePillLabelActive]}>
+            {item.variable ? 'Yes' : 'No'}
+          </StewardText>
+        </View>
+      </TouchableOpacity>
+
+      {/* 4 — Amount + remove */}
+      <View style={s.listRow}>
+        <StewardText style={s.listFieldLabel}>{amtLabel}</StewardText>
+        <TextInput
+          style={[s.listInput, { flex: 1 }]}
+          value={item.amount ? String(item.amount) : ''}
+          onChangeText={handleAmountChange}
+          keyboardType="number-pad"
+          placeholder="0"
+          placeholderTextColor={COLORS.placeholder}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
+        />
         <TouchableOpacity style={s.removeBtn} onPress={onRemove}>
           <StewardText style={s.removeBtnLabel}>✕</StewardText>
         </TouchableOpacity>
       </View>
+      {freq !== 'monthly' && item.amount > 0 && (
+        <StewardText style={[s.listFieldLabel, { marginTop: 4 }]}>
+          ≈ ${Math.round((item.amount || 0) / divisor).toLocaleString()}/mo
+        </StewardText>
+      )}
     </StewardCard>
   );
 }
@@ -117,6 +185,9 @@ function DebtRow({ item, onChange, onRemove }) {
             returnKeyType="done"
             onSubmitEditing={() => Keyboard.dismiss()}
           />
+          <TouchableOpacity onPress={() => Keyboard.dismiss()} style={{ paddingHorizontal: SPACING.sm }}>
+            <StewardText style={s.doneLabel}>Done</StewardText>
+          </TouchableOpacity>
           <TouchableOpacity style={s.removeBtn} onPress={onRemove}>
             <StewardText style={s.removeBtnLabel}>✕</StewardText>
           </TouchableOpacity>
@@ -541,7 +612,7 @@ export default function ProfileScreen({ navigation }) {
             ))}
             <AddBtn
               label="Add commitment"
-              onPress={() => setFixedCommitments([...fixedCommitments, { name: '', amount: 0 }])}
+              onPress={() => setFixedCommitments([...fixedCommitments, { name: '', amount: 0, frequency: 'monthly', variable: false, monthlyAmount: 0 }])}
             />
           </Section>
 
@@ -814,6 +885,11 @@ const s = StyleSheet.create({
     fontFamily: FONTS.sans.regular,
     fontSize: SIZES.sm,
     color: COLORS.placeholder,
+  },
+  doneLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.sm,
+    color: COLORS.sage,
   },
 
   payrollToggleRow: {
