@@ -61,6 +61,19 @@ export async function updateGoalBalance(goalId, delta) {
   await saveProfile({ ...profile, savingsGoals: updated });
 }
 
+// Update a single investment's balance by delta (positive = contribution, negative = reversal)
+export async function updateInvestmentBalance(investmentId, delta) {
+  const profile = await getProfile();
+  if (!profile) return;
+  const investments = profile.investments || [];
+  const updated = investments.map((inv) =>
+    inv.id === investmentId
+      ? { ...inv, balance: Math.max(0, (Number(inv.balance) || 0) + delta) }
+      : inv
+  );
+  await saveProfile({ ...profile, investments: updated });
+}
+
 // ─── Plan ──────────────────────────────────────────────────────────────────────
 // Shape:
 // {

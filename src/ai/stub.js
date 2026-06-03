@@ -64,7 +64,16 @@ export async function generatePlan(profile) {
     debts = [],
     savings,
     savingsGoals = [],
+    investments = [],
   } = profile;
+
+  const INVESTMENT_TYPE_LABELS = {
+    '401k': '401(k)',
+    ira_traditional: 'Traditional IRA',
+    ira_roth: 'Roth IRA',
+    brokerage: 'Brokerage',
+    hsa: 'HSA',
+  };
 
   const netInc = Number(netIncome) || 0;
   const fixedTotal = fixedCommitments.reduce((s, c) => s + Number(c.monthlyAmount || c.amount), 0);
@@ -101,6 +110,28 @@ export async function generatePlan(profile) {
       note: 'Floor. Protect at all costs.',
       items: debts.map((d) => ({ name: d.name, amount: Number(d.minimum || 0), balance: Number(d.balance || 0), rate: Number(d.rate || 0) })),
     });
+  }
+
+  // Layers 2.x — Investment contributions (auto-committed, one layer per active investment)
+  for (const inv of investments) {
+    const monthly = Number(inv.monthlyContribution) || 0;
+    if (!inv.name || monthly <= 0) continue;
+    const typeLabel = INVESTMENT_TYPE_LABELS[inv.type] || inv.type || 'Investment';
+    const balance = Number(inv.balance) || 0;
+    let note = `${typeLabel} · Balance: ${fmt(balance)}`;
+    if (inv.type === '401k' && Number(inv.employerMatch) > 0) {
+      note += ` · Employer matches ${inv.employerMatch}%`;
+    }
+    allocations.push({
+      layer: `investment_${inv.id}`,
+      name: inv.name,
+      amount: monthly,
+      spent: 0,
+      note,
+      investmentId: inv.id,
+      investmentType: inv.type,
+    });
+    remaining -= monthly;
   }
 
   // Layer 3 — Debt accelerator (if high-rate debt exists and there's room)

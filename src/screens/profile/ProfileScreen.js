@@ -165,6 +165,86 @@ function AddBtn({ label, onPress }) {
   );
 }
 
+// ─── Investment row ──────────────────────────────────────────────────────────────
+const INVESTMENT_TYPES = [
+  { label: '401(k)', value: '401k' },
+  { label: 'Trad IRA', value: 'ira_traditional' },
+  { label: 'Roth IRA', value: 'ira_roth' },
+  { label: 'Brokerage', value: 'brokerage' },
+  { label: 'HSA', value: 'hsa' },
+];
+
+function InvestmentRow({ item, onChange, onRemove }) {
+  return (
+    <StewardCard style={s.listCard}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm }}>
+        <TextInput
+          style={[s.listInput, { flex: 1, marginRight: SPACING.sm }]}
+          value={item.name}
+          onChangeText={(v) => onChange({ ...item, name: v })}
+          placeholder="Account name"
+          placeholderTextColor={COLORS.placeholder}
+        />
+        <TouchableOpacity onPress={onRemove}>
+          <StewardText style={s.removeLabel}>Remove</StewardText>
+        </TouchableOpacity>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: SPACING.sm }}>
+        <View style={{ flexDirection: 'row', gap: SPACING.xs }}>
+          {INVESTMENT_TYPES.map((t) => (
+            <TouchableOpacity
+              key={t.value}
+              style={[s.typePill, item.type === t.value && s.typePillActive]}
+              onPress={() => onChange({ ...item, type: t.value })}
+            >
+              <StewardText style={[s.typePillLabel, item.type === t.value && s.typePillLabelActive]}>
+                {t.label}
+              </StewardText>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+      <View style={s.listRow}>
+        <View style={[s.listAmountWrap, { flex: 1 }]}>
+          <StewardText style={s.listFieldLabel}>Monthly $</StewardText>
+          <TextInput
+            style={[s.listInput, { flex: 1 }]}
+            value={item.monthlyContribution ? String(item.monthlyContribution) : ''}
+            onChangeText={(v) => onChange({ ...item, monthlyContribution: Number(v.replace(/[^0-9]/g, '')) })}
+            keyboardType="number-pad"
+            placeholder="0"
+            placeholderTextColor={COLORS.placeholder}
+          />
+        </View>
+        <View style={[s.listAmountWrap, { flex: 1 }]}>
+          <StewardText style={s.listFieldLabel}>Balance $</StewardText>
+          <TextInput
+            style={[s.listInput, { flex: 1 }]}
+            value={item.balance ? String(item.balance) : ''}
+            onChangeText={(v) => onChange({ ...item, balance: Number(v.replace(/[^0-9]/g, '')) })}
+            keyboardType="number-pad"
+            placeholder="0"
+            placeholderTextColor={COLORS.placeholder}
+          />
+        </View>
+        {item.type === '401k' && (
+          <View style={[s.listAmountWrap, { flex: 1 }]}>
+            <StewardText style={s.listFieldLabel}>Match %</StewardText>
+            <TextInput
+              style={[s.listInput, { flex: 1 }]}
+              value={item.employerMatch ? String(item.employerMatch) : ''}
+              onChangeText={(v) => onChange({ ...item, employerMatch: Number(v.replace(/[^0-9.]/g, '')) })}
+              keyboardType="decimal-pad"
+              placeholder="0"
+              placeholderTextColor={COLORS.placeholder}
+            />
+          </View>
+        )}
+      </View>
+    </StewardCard>
+  );
+}
+
 // ─── Goal row ────────────────────────────────────────────────────────────────────
 function GoalRow({ item, onChange, onRemove }) {
   return (
@@ -236,6 +316,7 @@ export default function ProfileScreen({ navigation }) {
   const [fixedCommitments, setFixedCommitments] = useState([]);
   const [debts, setDebts] = useState([]);
   const [savings, setSavings] = useState('');
+  const [investments, setInvestments] = useState([]);
   const [savingsGoals, setSavingsGoals] = useState([]);
   const [dirty, setDirty] = useState(false);
 
@@ -250,12 +331,13 @@ export default function ProfileScreen({ navigation }) {
       setFixedCommitments(p.fixedCommitments || []);
       setDebts(p.debts || []);
       setSavings(p.savings ? String(p.savings) : '');
+      setInvestments(p.investments || []);
       setSavingsGoals(p.savingsGoals || []);
     });
   }, []);
 
   // Track changes
-  useEffect(() => { setDirty(true); }, [name, priorities, netIncome, payFrequency, fixedCommitments, debts, savings, savingsGoals]);
+  useEffect(() => { setDirty(true); }, [name, priorities, netIncome, payFrequency, fixedCommitments, debts, savings, investments, savingsGoals]);
   useEffect(() => { setDirty(false); }, [original]); // reset after load
 
   const handleSave = async () => {
@@ -273,6 +355,7 @@ export default function ProfileScreen({ navigation }) {
       fixedCommitments: fixedCommitments.filter((c) => c.name.trim()),
       debts: debts.filter((d) => d.name.trim()),
       savings: Number(savings) || 0,
+      investments: investments.filter((inv) => inv.name.trim()),
       savingsGoals: savingsGoals.filter((g) => g.name.trim()),
     };
 
@@ -283,6 +366,7 @@ export default function ProfileScreen({ navigation }) {
     const commitmentsChanged =
       JSON.stringify(original?.fixedCommitments) !== JSON.stringify(updatedProfile.fixedCommitments) ||
       JSON.stringify(original?.debts) !== JSON.stringify(updatedProfile.debts) ||
+      JSON.stringify(original?.investments) !== JSON.stringify(updatedProfile.investments) ||
       JSON.stringify(original?.savingsGoals) !== JSON.stringify(updatedProfile.savingsGoals);
 
     if (incomeChanged || commitmentsChanged) {
@@ -336,6 +420,14 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const removeGoal = (i) => setSavingsGoals(savingsGoals.filter((_, idx) => idx !== i));
+
+  const updateInvestment = (i, val) => {
+    const updated = [...investments];
+    updated[i] = val;
+    setInvestments(updated);
+  };
+
+  const removeInvestment = (i) => setInvestments(investments.filter((_, idx) => idx !== i));
 
   return (
     <SafeAreaView style={s.root} edges={['top', 'left', 'right']}>
@@ -426,6 +518,25 @@ export default function ProfileScreen({ navigation }) {
             <AddBtn
               label="Add debt"
               onPress={() => setDebts([...debts, { name: '', balance: 0, minimum: 0, rate: 0 }])}
+            />
+          </Section>
+
+          {/* Investments */}
+          <Section label="INVESTMENTS">
+            <StewardText style={s.sectionHint}>
+              Retirement accounts, brokerage, and HSA. Monthly contributions appear as auto-committed plan layers.
+            </StewardText>
+            {investments.map((inv, i) => (
+              <InvestmentRow
+                key={inv.id || i}
+                item={inv}
+                onChange={(val) => updateInvestment(i, val)}
+                onRemove={() => removeInvestment(i)}
+              />
+            ))}
+            <AddBtn
+              label="Add investment"
+              onPress={() => setInvestments([...investments, { id: Date.now().toString(), name: '', type: '401k', monthlyContribution: 0, balance: 0, employerMatch: 0 }])}
             />
           </Section>
 
@@ -660,6 +771,28 @@ const s = StyleSheet.create({
     fontFamily: FONTS.sans.regular,
     fontSize: SIZES.sm,
     color: COLORS.placeholder,
+  },
+
+  typePill: {
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.white,
+  },
+  typePillActive: {
+    backgroundColor: COLORS.forest,
+    borderColor: COLORS.forest,
+  },
+  typePillLabel: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.xs,
+    color: COLORS.placeholder,
+  },
+  typePillLabelActive: {
+    color: COLORS.white,
+    fontFamily: FONTS.sans.medium,
   },
 
   addBtn: {

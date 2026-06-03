@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
-import { getProfile, getPlan, getSpends, addSpend, currentMonth, formatCurrency, getTransfers, addTransfer, deleteTransfer, netTransferred, savePlan, updateGoalBalance } from '../../data/store';
+import { getProfile, getPlan, getSpends, addSpend, currentMonth, formatCurrency, getTransfers, addTransfer, deleteTransfer, netTransferred, savePlan, updateGoalBalance, updateInvestmentBalance } from '../../data/store';
 import { getDailyObservation, generatePlan } from '../../ai/stub';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
@@ -753,6 +753,7 @@ export default function DashboardScreen({ navigation }) {
 
       const updatedAllocations = pl.allocations.map((alloc) => {
         if (alloc.layer === 'fixed') return { ...alloc, spent: alloc.amount };
+        if (alloc.layer?.startsWith('investment_')) return { ...alloc, spent: alloc.amount };
         if (alloc.layer === 'debt_floor') {
           // Merge actual payments into items
           const itemsWithActuals = (alloc.items || []).map((item) => {
@@ -847,11 +848,15 @@ export default function DashboardScreen({ navigation }) {
   const handleAddTransfer = async (transfer) => {
     const updated = await addTransfer(transfer, month);
     setTransfers(updated);
-    // Update goal saved balance if this is a goal layer
     if (transfer.layer?.startsWith('goal_')) {
       const goalId = transfer.layer.replace('goal_', '');
       const delta = transfer.type === 'deposit' ? transfer.amount : -transfer.amount;
       await updateGoalBalance(goalId, delta);
+    }
+    if (transfer.layer?.startsWith('investment_')) {
+      const investmentId = transfer.layer.replace('investment_', '');
+      const delta = transfer.type === 'deposit' ? transfer.amount : -transfer.amount;
+      await updateInvestmentBalance(investmentId, delta);
     }
     await load();
   };
@@ -865,6 +870,11 @@ export default function DashboardScreen({ navigation }) {
       const goalId = existing.layer.replace('goal_', '');
       const delta = existing.type === 'deposit' ? -existing.amount : existing.amount;
       await updateGoalBalance(goalId, delta);
+    }
+    if (existing?.layer?.startsWith('investment_')) {
+      const investmentId = existing.layer.replace('investment_', '');
+      const delta = existing.type === 'deposit' ? -existing.amount : existing.amount;
+      await updateInvestmentBalance(investmentId, delta);
     }
     await load();
   };
@@ -939,7 +949,7 @@ export default function DashboardScreen({ navigation }) {
                     setFixedModalVisible(true);
                   } else if (alloc.layer === 'debt_floor') {
                     setDebtModalVisible(true);
-                  } else if (alloc.layer === 'stability' || alloc.layer === 'debt_accelerator' || alloc.layer?.startsWith('goal_')) {
+                  } else if (alloc.layer === 'stability' || alloc.layer === 'debt_accelerator' || alloc.layer?.startsWith('goal_') || alloc.layer?.startsWith('investment_')) {
                     setTransferAllocation(alloc);
                   } else {
                     setDetailAllocation(alloc);
