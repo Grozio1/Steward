@@ -881,12 +881,9 @@ export default function DashboardScreen({ navigation }) {
           <FlameIcon size={20} />
           <StewardText style={styles.wordmark}>Steward</StewardText>
         </View>
-        <View style={styles.forestHeaderRight}>
-          <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ padding: 4 }}>
-            <Ionicons name="settings-outline" size={22} color="rgba(255,255,255,0.65)" />
-          </TouchableOpacity>
-          <FlameIcon size={20} />
-        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ padding: 4 }}>
+          <Ionicons name="settings-outline" size={22} color="rgba(255,255,255,0.65)" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -1026,11 +1023,6 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
   },
   forestHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  forestHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
