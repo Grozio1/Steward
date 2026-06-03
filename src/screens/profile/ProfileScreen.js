@@ -3,9 +3,11 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   TextInput,
   StyleSheet,
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -77,6 +79,8 @@ function CommitmentRow({ item, onChange, onRemove }) {
           onChangeText={(v) => onChange({ ...item, name: v })}
           placeholder="e.g. Rent"
           placeholderTextColor={COLORS.placeholder}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
         />
         <View style={s.listAmountWrap}>
           <StewardText style={s.listDollar}>$</StewardText>
@@ -87,6 +91,8 @@ function CommitmentRow({ item, onChange, onRemove }) {
             keyboardType="number-pad"
             placeholder="0"
             placeholderTextColor={COLORS.placeholder}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
         </View>
         <TouchableOpacity style={s.removeBtn} onPress={onRemove}>
@@ -109,6 +115,8 @@ function DebtRow({ item, onChange, onRemove }) {
             onChangeText={(v) => onChange({ ...item, name: v })}
             placeholder="e.g. Car loan"
             placeholderTextColor={COLORS.placeholder}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
           <TouchableOpacity style={s.removeBtn} onPress={onRemove}>
             <StewardText style={s.removeBtnLabel}>✕</StewardText>
@@ -125,6 +133,8 @@ function DebtRow({ item, onChange, onRemove }) {
               keyboardType="number-pad"
               placeholder="0"
               placeholderTextColor={COLORS.placeholder}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
             />
           </View>
           <View style={[s.listAmountWrap, { flex: 1 }]}>
@@ -137,6 +147,8 @@ function DebtRow({ item, onChange, onRemove }) {
               keyboardType="number-pad"
               placeholder="0"
               placeholderTextColor={COLORS.placeholder}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
             />
           </View>
           <View style={[s.listAmountWrap, { flex: 1 }]}>
@@ -148,6 +160,8 @@ function DebtRow({ item, onChange, onRemove }) {
               keyboardType="decimal-pad"
               placeholder="0"
               placeholderTextColor={COLORS.placeholder}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
             />
           </View>
         </View>
@@ -184,6 +198,8 @@ function InvestmentRow({ item, onChange, onRemove }) {
           onChangeText={(v) => onChange({ ...item, name: v })}
           placeholder="Account name"
           placeholderTextColor={COLORS.placeholder}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
         />
         <TouchableOpacity onPress={onRemove}>
           <StewardText style={s.removeLabel}>Remove</StewardText>
@@ -226,6 +242,8 @@ function InvestmentRow({ item, onChange, onRemove }) {
             keyboardType="number-pad"
             placeholder="0"
             placeholderTextColor={COLORS.placeholder}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
         </View>
         <View style={[s.listAmountWrap, { flex: 1 }]}>
@@ -237,6 +255,8 @@ function InvestmentRow({ item, onChange, onRemove }) {
             keyboardType="number-pad"
             placeholder="0"
             placeholderTextColor={COLORS.placeholder}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
         </View>
         {item.type === '401k' && (
@@ -249,6 +269,8 @@ function InvestmentRow({ item, onChange, onRemove }) {
               keyboardType="decimal-pad"
               placeholder="0"
               placeholderTextColor={COLORS.placeholder}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
             />
           </View>
         )}
@@ -268,6 +290,8 @@ function GoalRow({ item, onChange, onRemove }) {
           onChangeText={(v) => onChange({ ...item, name: v })}
           placeholder="Goal name"
           placeholderTextColor={COLORS.placeholder}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
         />
         <TouchableOpacity onPress={onRemove}>
           <StewardText style={s.removeLabel}>Remove</StewardText>
@@ -283,6 +307,8 @@ function GoalRow({ item, onChange, onRemove }) {
             keyboardType="number-pad"
             placeholder="0"
             placeholderTextColor={COLORS.placeholder}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
         </View>
         <View style={[s.listAmountWrap, { flex: 1 }]}>
@@ -294,6 +320,8 @@ function GoalRow({ item, onChange, onRemove }) {
             keyboardType="number-pad"
             placeholder="0"
             placeholderTextColor={COLORS.placeholder}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
         </View>
         <View style={[s.listAmountWrap, { flex: 1 }]}>
@@ -305,6 +333,8 @@ function GoalRow({ item, onChange, onRemove }) {
             keyboardType="number-pad"
             placeholder="0"
             placeholderTextColor={COLORS.placeholder}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
         </View>
       </View>
@@ -457,10 +487,11 @@ export default function ProfileScreen({ navigation }) {
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+          <View style={s.scroll}>
           {/* About you */}
           <Section label="ABOUT YOU">
             <EditField
@@ -605,6 +636,8 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           <View style={{ height: 48 }} />
+          </View>
+          </TouchableWithoutFeedback>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
