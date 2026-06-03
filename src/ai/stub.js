@@ -9,6 +9,18 @@ function fmt(n) {
   return `$${Math.round(Number(n) || 0).toLocaleString()}`;
 }
 
+// Converts per-paycheck netIncome to a true monthly figure.
+function toMonthly(netIncome, payFrequency) {
+  const n = Number(netIncome) || 0;
+  switch (payFrequency) {
+    case 'weekly':       return Math.round(n * 52 / 12);
+    case 'biweekly':     return Math.round(n * 26 / 12);
+    case 'semi-monthly': return Math.round(n * 2);
+    case 'monthly':
+    default:             return n;
+  }
+}
+
 // ─── Synthesis ─────────────────────────────────────────────────────────────────
 // Called on SynthesisScreen. Returns what Steward "heard" + one key insight.
 export async function generateSynthesis(profile) {
@@ -17,16 +29,18 @@ export async function generateSynthesis(profile) {
   const {
     name,
     netIncome,
+    payFrequency,
     fixedCommitments = [],
     debts = [],
     savings,
   } = profile;
 
+  const monthly = toMonthly(netIncome, payFrequency);
   const fixedTotal = fixedCommitments.reduce((s, c) => s + Number(c.monthlyAmount || c.amount), 0);
   const debtMinimums = debts.reduce((s, d) => s + Number(d.minimum || 0), 0);
   const debtTotal = debts.reduce((s, d) => s + Number(d.balance || 0), 0);
   const monthlyFixed = fixedTotal + debtMinimums;
-  const remaining = Number(netIncome) - monthlyFixed;
+  const remaining = monthly - monthlyFixed;
 
   // One key insight — the single most important thing to say
   let keyInsight;
@@ -44,7 +58,7 @@ export async function generateSynthesis(profile) {
   }
 
   const summary = [
-    `Take-home: ${fmt(netIncome)}/month`,
+    `Take-home: ${fmt(monthly)}/month`,
     fixedTotal > 0 ? `Fixed costs: ${fmt(fixedTotal)}/month` : null,
     debtMinimums > 0 ? `Debt minimums: ${fmt(debtMinimums)}/month` : null,
     `Working with: ${fmt(remaining)}/month after fixed costs`,
@@ -60,6 +74,7 @@ export async function generatePlan(profile) {
 
   const {
     netIncome,
+    payFrequency,
     fixedCommitments = [],
     debts = [],
     savings,
@@ -75,7 +90,7 @@ export async function generatePlan(profile) {
     hsa: 'HSA',
   };
 
-  const netInc = Number(netIncome) || 0;
+  const netInc = toMonthly(netIncome, payFrequency);
   const fixedTotal = fixedCommitments.reduce((s, c) => s + Number(c.monthlyAmount || c.amount), 0);
   const debtMinimums = debts.reduce((s, d) => s + Number(d.minimum || 0), 0);
   let remaining = netInc - fixedTotal - debtMinimums;

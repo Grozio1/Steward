@@ -64,7 +64,7 @@ export default function OnboardingScreen({ navigation }) {
   // Format a user answer into a readable string for the bubble
   const formatUserAnswer = (key, value) => {
     if (key === 'payFrequency') {
-      const labels = { weekly: 'Weekly', biweekly: 'Every two weeks', monthly: 'Once a month' };
+      const labels = { weekly: 'Weekly', biweekly: 'Every two weeks', 'semi-monthly': 'Twice a month', monthly: 'Once a month' };
       return labels[value] || value;
     }
     if (key === 'netIncome' || key === 'savings') {

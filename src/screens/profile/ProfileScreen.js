@@ -416,6 +416,7 @@ function GoalRow({ item, onChange, onRemove }) {
 const PAY_FREQ = [
   { label: 'Weekly', value: 'weekly' },
   { label: 'Bi-weekly', value: 'biweekly' },
+  { label: 'Semi-monthly', value: 'semi-monthly' },
   { label: 'Monthly', value: 'monthly' },
 ];
 
