@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
-import { generateSynthesis, generatePlan } from '../../ai/stub';
+import { generateSynthesis, generatePlan } from '../../ai/claude';
 import { saveProfile, savePlan, currentMonth } from '../../data/store';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';

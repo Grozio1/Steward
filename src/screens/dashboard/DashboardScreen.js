@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
 import { getProfile, getPlan, getSpends, addSpend, currentMonth, formatCurrency, getTransfers, addTransfer, deleteTransfer, netTransferred, savePlan, updateGoalBalance, updateInvestmentBalance } from '../../data/store';
-import { getDailyObservation, generatePlan } from '../../ai/stub';
+import { getDailyObservation, generatePlan } from '../../ai/claude';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 import { Ionicons } from '@expo/vector-icons';

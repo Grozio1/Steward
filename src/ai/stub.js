@@ -1,7 +1,7 @@
-// AI stub layer
-// All functions return Promises to match the real API interface.
-// Replace with actual Anthropic API calls when ready.
-// Voice throughout: parent/grandparent — warm, direct, plain.
+// AI stub layer — fallback implementations and plan arithmetic.
+// getDailyObservation and generateSynthesis have moved to claude.js (real API).
+// This file is still the source of truth for generatePlan (pure arithmetic, no AI needed)
+// and provides stub fallbacks that claude.js imports on API error.
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
