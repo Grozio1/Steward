@@ -5,7 +5,7 @@ import { COLORS } from '../constants/brand';
 
 // Proper SVG flame path — teardrop with an asymmetric lean, classic flame silhouette
 // Forest green circle background, Ember amber flame
-export default function FlameIcon({ size = 28 }) {
+export default function FlameIcon({ size = 28, bgColor = COLORS.forest }) {
   const containerSize = Math.round(size * 1.6);
   const s = containerSize; // viewBox size
 
@@ -42,7 +42,7 @@ export default function FlameIcon({ size = 28 }) {
         width: containerSize,
         height: containerSize,
         borderRadius: containerSize / 2,
-        backgroundColor: COLORS.forest,
+        backgroundColor: bgColor,
         alignItems: 'center',
         justifyContent: 'center',
       }}

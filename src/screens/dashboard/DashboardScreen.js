@@ -878,7 +878,7 @@ export default function DashboardScreen({ navigation }) {
       {/* Forest header bar */}
       <View style={styles.forestHeader}>
         <View style={styles.forestHeaderLeft}>
-          <FlameIcon size={20} />
+          <FlameIcon size={20} bgColor="transparent" />
           <StewardText style={styles.wordmark}>Steward</StewardText>
         </View>
         <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ padding: 4 }}>
