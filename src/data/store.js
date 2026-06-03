@@ -44,7 +44,21 @@ export async function saveProfile(profile) {
   await AsyncStorage.setItem(K.PROFILE, JSON.stringify({
     ...profile,
     createdAt: profile.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   }));
+}
+
+// Update a single goal's saved balance by delta (positive = deposit, negative = withdrawal)
+export async function updateGoalBalance(goalId, delta) {
+  const profile = await getProfile();
+  if (!profile) return;
+  const goals = profile.savingsGoals || [];
+  const updated = goals.map((g) =>
+    g.id === goalId
+      ? { ...g, saved: Math.max(0, (Number(g.saved) || 0) + delta) }
+      : g
+  );
+  await saveProfile({ ...profile, savingsGoals: updated });
 }
 
 // ─── Plan ──────────────────────────────────────────────────────────────────────

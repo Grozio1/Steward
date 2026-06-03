@@ -63,6 +63,7 @@ export async function generatePlan(profile) {
     fixedCommitments = [],
     debts = [],
     savings,
+    savingsGoals = [],
   } = profile;
 
   const netInc = Number(netIncome) || 0;
@@ -129,6 +130,30 @@ export async function generatePlan(profile) {
       note: `Reach ${fmt(safetyTarget)} in ~${monthsToGoal} months. Protects everything else.`,
     });
     remaining -= buffer;
+  }
+
+  // Layers 5+ — Savings goals (one layer per goal, in order defined)
+  for (const goal of savingsGoals) {
+    if (!goal.name || !goal.monthly || remaining <= 0) continue;
+    const monthly = Math.min(Number(goal.monthly) || 0, remaining);
+    if (monthly <= 0) continue;
+    const saved = Number(goal.saved) || 0;
+    const target = Number(goal.target) || 0;
+    if (target > 0 && saved >= target) continue; // goal complete
+    const monthsLeft = (target > 0 && monthly > 0) ? Math.ceil((target - saved) / monthly) : null;
+    allocations.push({
+      layer: `goal_${goal.id}`,
+      name: goal.name,
+      amount: monthly,
+      spent: 0,
+      note: monthsLeft
+        ? `${fmt(saved)} of ${fmt(target)} saved. ~${monthsLeft} month${monthsLeft === 1 ? '' : 's'} to go.`
+        : `${fmt(saved)} saved so far.`,
+      goalId: goal.id,
+      goalTarget: target,
+      goalSaved: saved,
+    });
+    remaining -= monthly;
   }
 
   // Layer 5 — Food

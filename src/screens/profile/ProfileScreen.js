@@ -165,6 +165,61 @@ function AddBtn({ label, onPress }) {
   );
 }
 
+// ─── Goal row ────────────────────────────────────────────────────────────────────
+function GoalRow({ item, onChange, onRemove }) {
+  return (
+    <StewardCard style={s.listCard}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm }}>
+        <TextInput
+          style={[s.listInput, { flex: 1, marginRight: SPACING.sm }]}
+          value={item.name}
+          onChangeText={(v) => onChange({ ...item, name: v })}
+          placeholder="Goal name"
+          placeholderTextColor={COLORS.placeholder}
+        />
+        <TouchableOpacity onPress={onRemove}>
+          <StewardText style={s.removeLabel}>Remove</StewardText>
+        </TouchableOpacity>
+      </View>
+      <View style={s.listRow}>
+        <View style={[s.listAmountWrap, { flex: 1 }]}>
+          <StewardText style={s.listFieldLabel}>Target $</StewardText>
+          <TextInput
+            style={[s.listInput, { flex: 1 }]}
+            value={item.target ? String(item.target) : ''}
+            onChangeText={(v) => onChange({ ...item, target: Number(v.replace(/[^0-9]/g, '')) })}
+            keyboardType="number-pad"
+            placeholder="0"
+            placeholderTextColor={COLORS.placeholder}
+          />
+        </View>
+        <View style={[s.listAmountWrap, { flex: 1 }]}>
+          <StewardText style={s.listFieldLabel}>Monthly $</StewardText>
+          <TextInput
+            style={[s.listInput, { flex: 1 }]}
+            value={item.monthly ? String(item.monthly) : ''}
+            onChangeText={(v) => onChange({ ...item, monthly: Number(v.replace(/[^0-9]/g, '')) })}
+            keyboardType="number-pad"
+            placeholder="0"
+            placeholderTextColor={COLORS.placeholder}
+          />
+        </View>
+        <View style={[s.listAmountWrap, { flex: 1 }]}>
+          <StewardText style={s.listFieldLabel}>Saved $</StewardText>
+          <TextInput
+            style={[s.listInput, { flex: 1 }]}
+            value={item.saved ? String(item.saved) : ''}
+            onChangeText={(v) => onChange({ ...item, saved: Number(v.replace(/[^0-9]/g, '')) })}
+            keyboardType="number-pad"
+            placeholder="0"
+            placeholderTextColor={COLORS.placeholder}
+          />
+        </View>
+      </View>
+    </StewardCard>
+  );
+}
+
 // ─── Main screen ─────────────────────────────────────────────────────────────────
 const PAY_FREQ = [
   { label: 'Weekly', value: 'weekly' },
@@ -181,7 +236,7 @@ export default function ProfileScreen({ navigation }) {
   const [fixedCommitments, setFixedCommitments] = useState([]);
   const [debts, setDebts] = useState([]);
   const [savings, setSavings] = useState('');
-  const [goals, setGoals] = useState('');
+  const [savingsGoals, setSavingsGoals] = useState([]);
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
@@ -195,12 +250,12 @@ export default function ProfileScreen({ navigation }) {
       setFixedCommitments(p.fixedCommitments || []);
       setDebts(p.debts || []);
       setSavings(p.savings ? String(p.savings) : '');
-      setGoals(p.goals || '');
+      setSavingsGoals(p.savingsGoals || []);
     });
   }, []);
 
   // Track changes
-  useEffect(() => { setDirty(true); }, [name, priorities, netIncome, payFrequency, fixedCommitments, debts, savings, goals]);
+  useEffect(() => { setDirty(true); }, [name, priorities, netIncome, payFrequency, fixedCommitments, debts, savings, savingsGoals]);
   useEffect(() => { setDirty(false); }, [original]); // reset after load
 
   const handleSave = async () => {
@@ -218,7 +273,7 @@ export default function ProfileScreen({ navigation }) {
       fixedCommitments: fixedCommitments.filter((c) => c.name.trim()),
       debts: debts.filter((d) => d.name.trim()),
       savings: Number(savings) || 0,
-      goals: goals.trim(),
+      savingsGoals: savingsGoals.filter((g) => g.name.trim()),
     };
 
     await saveProfile(updatedProfile);
@@ -227,7 +282,8 @@ export default function ProfileScreen({ navigation }) {
     const incomeChanged = original?.netIncome !== updatedProfile.netIncome;
     const commitmentsChanged =
       JSON.stringify(original?.fixedCommitments) !== JSON.stringify(updatedProfile.fixedCommitments) ||
-      JSON.stringify(original?.debts) !== JSON.stringify(updatedProfile.debts);
+      JSON.stringify(original?.debts) !== JSON.stringify(updatedProfile.debts) ||
+      JSON.stringify(original?.savingsGoals) !== JSON.stringify(updatedProfile.savingsGoals);
 
     if (incomeChanged || commitmentsChanged) {
       const month = (() => {
@@ -272,6 +328,14 @@ export default function ProfileScreen({ navigation }) {
   const removeDebt = (i) => {
     setDebts(debts.filter((_, idx) => idx !== i));
   };
+
+  const updateGoal = (i, val) => {
+    const updated = [...savingsGoals];
+    updated[i] = val;
+    setSavingsGoals(updated);
+  };
+
+  const removeGoal = (i) => setSavingsGoals(savingsGoals.filter((_, idx) => idx !== i));
 
   return (
     <SafeAreaView style={s.root} edges={['top', 'left', 'right']}>
@@ -375,12 +439,20 @@ export default function ProfileScreen({ navigation }) {
               keyboardType="number-pad"
               hint="Your current liquid savings balance."
             />
-            <EditField
-              label="What are you working toward?"
-              value={goals}
-              onChangeText={setGoals}
-              placeholder="e.g. Three months of expenses set aside. Pay off the card by December."
-              multiline
+            <StewardText style={[s.sectionHint, { marginTop: SPACING.md }]}>
+              Named goals — each gets its own line in your plan with a monthly contribution.
+            </StewardText>
+            {savingsGoals.map((g, i) => (
+              <GoalRow
+                key={g.id || i}
+                item={g}
+                onChange={(val) => updateGoal(i, val)}
+                onRemove={() => removeGoal(i)}
+              />
+            ))}
+            <AddBtn
+              label="Add goal"
+              onPress={() => setSavingsGoals([...savingsGoals, { id: Date.now().toString(), name: '', target: 0, monthly: 0, saved: 0 }])}
             />
           </Section>
 
@@ -580,6 +652,11 @@ const s = StyleSheet.create({
     padding: SPACING.xs,
   },
   removeBtnLabel: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.sm,
+    color: COLORS.placeholder,
+  },
+  removeLabel: {
     fontFamily: FONTS.sans.regular,
     fontSize: SIZES.sm,
     color: COLORS.placeholder,

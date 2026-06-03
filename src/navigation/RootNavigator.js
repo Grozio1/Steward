@@ -35,19 +35,15 @@ export default function RootNavigator() {
       initialRouteName={initialRoute}
       screenOptions={{ headerShown: false, animation: 'fade' }}
     >
-      {/* Onboarding flow */}
+      {/* Onboarding flow — always registered so we can navigate here after reset */}
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="Synthesis" component={SynthesisScreen} />
 
       {/* Main app */}
       <Stack.Screen name="Main" component={MainNavigator} />
 
-      {/* Profile — modal slide from bottom */}
-      <Stack.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-      />
+      {/* Profile — accessible from dashboard header */}
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );
 }
