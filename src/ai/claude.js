@@ -48,14 +48,14 @@ export async function getDailyObservation(profile) {
     if (profile?.netIncome) parts.push(`Take-home: $${Number(profile.netIncome).toLocaleString()}/mo`);
     if (profile?.savings) parts.push(`Savings: $${Number(profile.savings).toLocaleString()}`);
 
-    console.log('→ Haiku observation requested');
+    console.log('→ Haiku: observation requested');
     const text = await call(
       'claude-3-haiku-20240307',
       'You are Steward, a financial life companion with a parent/grandparent voice — warm, direct, plain. Write one sentence only. No greeting, no punctuation beyond a period. Observe something genuine about where the user stands this month based on their profile. Never generic filler.',
       parts.join('. '),
       60,
     );
-    console.log('← Haiku response: ' + text);
+    console.log('← Haiku:', text);
     return text || stubObservation(profile);
   } catch {
     return stubObservation(profile);
@@ -66,14 +66,14 @@ export async function getDailyObservation(profile) {
 // Sonnet — full profile → JSON { summary, keyInsight, name }.
 export async function generateSynthesis(profile) {
   try {
-    console.log('→ Sonnet synthesis requested');
+    console.log('→ Sonnet: synthesis requested');
     const text = await call(
       'claude-sonnet-4-20250514',
       'You are Steward. You just finished a first conversation with someone about their finances. Write a synthesis: 2–3 bullet points of what you heard (plain language, specific numbers), then one key insight paragraph starting with the single most important thing to address. Voice: warm, direct, never clinical. Return JSON only: { "summary": string[], "keyInsight": string, "name": string }',
       JSON.stringify(profile),
       400,
     );
-    console.log('← Sonnet response received');
+    console.log('← Sonnet: synthesis received');
     // Strip markdown code fences if the model wraps the JSON
     const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     const parsed = JSON.parse(cleaned);
