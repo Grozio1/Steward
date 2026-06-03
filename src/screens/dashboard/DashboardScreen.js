@@ -18,6 +18,7 @@ import { getProfile, getPlan, getSpends, addSpend, currentMonth, formatCurrency,
 import { getDailyObservation, generatePlan } from '../../ai/stub';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
+import { Ionicons } from '@expo/vector-icons';
 import FlameIcon from '../../components/FlameIcon';
 import AllocationBar from '../../components/AllocationBar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -889,7 +890,7 @@ export default function DashboardScreen({ navigation }) {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
             <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ padding: 4 }}>
-              <StewardText style={{ fontSize: 20, color: COLORS.sage }}>⚙</StewardText>
+              <Ionicons name="settings-outline" size={22} color={COLORS.sage} />
             </TouchableOpacity>
             <FlameIcon size={20} />
           </View>
