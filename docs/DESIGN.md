@@ -146,9 +146,22 @@ Tapping an AllocationBar opens the appropriate detail modal:
 
 ### FlameIcon
 
-The brand mark. Forest green circle, ember flame SVG. Size prop sets the flame area; the container is automatically `size × 1.6`.
+The brand mark. Forest green circle, ember flame SVG. Size prop sets the flame area; the container is automatically `size × 1.6`. Accepts a `bgColor` prop (default `COLORS.forest`); pass `bgColor="transparent"` in the dashboard header so only the amber flame renders against the forest bar.
 
-Used in: dashboard header (size 20). Not used as a reward or notification indicator.
+Used in: dashboard header (size 20, transparent bg). Not used as a reward or notification indicator.
+
+### CommitmentRow (ProfileScreen)
+
+Fixed commitments are entered with four stacked controls in this order — keyboard-safe, controls above the amount field so they remain visible when the keyboard is up:
+
+1. **Name input** + **Done** link (sage, top-right — calls `Keyboard.dismiss()`)
+2. **Frequency pills** — Monthly / Quarterly / Semi-annual / Annual (horizontal scroll, `typePill` style)
+3. **Variable toggle** — "Amount varies month to month" Yes/No (`payrollTogglePill` style)
+4. **Amount input** + **✕ remove** — label reflects frequency ("Monthly $", "Quarterly total $", etc.); a `≈ $X/mo` note appears below for non-monthly entries
+
+When frequency is not monthly, `monthlyAmount` is computed from `amount / divisor` and stored alongside `amount` on the item. `stub.js` reads `c.monthlyAmount || c.amount` for plan allocation so both fields are correct.
+
+`DebtRow` follows the same principle: name + Done at top, number inputs below.
 
 ---
 
@@ -239,7 +252,19 @@ This is non-negotiable. The log moment happens in the real world — standing at
 ### AI visibility principle
 Whenever Steward presents AI-generated content, it is visually distinct (`stewardVoice` variant, `StewardCard variant="parchment"`) but never labeled "AI says" or marked with a robot icon. The voice is Steward's voice, not a feature's voice.
 
-The `stub.js` layer matches the interface the real API will use, so the switch from stub to live is a drop-in. All AI content is reviewed for voice before shipping.
+`getDailyObservation` and `generateSynthesis` call the real Anthropic API (`claude.js`); `generatePlan` is pure arithmetic in `stub.js`. Both API functions fall back to stub responses on error so the app never crashes when offline. All AI content is reviewed for voice before shipping.
+
+### Income normalisation
+`netIncome` is stored as the per-paycheck amount. Before any plan arithmetic or synthesis summary, `stub.js` converts it to a true monthly figure via `toMonthly(netIncome, payFrequency)`:
+
+| `payFrequency` | Multiplier |
+|---|---|
+| `weekly` | × 52 / 12 |
+| `biweekly` | × 26 / 12 |
+| `semi-monthly` | × 2 |
+| `monthly` | × 1 |
+
+The dashboard summary card's "Income" figure and the synthesis "Take-home: X/month" line both show this computed monthly amount. Pay frequency options are: Weekly, Bi-weekly, Semi-monthly, Monthly.
 
 ### Modal behavior
 - All modals are bottom sheets (`animationType="slide"`, `presentationStyle="overFullScreen"`)
