@@ -3,7 +3,6 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   TextInput,
   StyleSheet,
   Alert,
@@ -487,11 +486,12 @@ export default function ProfileScreen({ navigation }) {
 
         <ScrollView
           style={{ flex: 1 }}
+          contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          onScrollBeginDrag={() => Keyboard.dismiss()}
         >
-          <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-          <View style={s.scroll}>
           {/* About you */}
           <Section label="ABOUT YOU">
             <EditField
@@ -636,8 +636,6 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           <View style={{ height: 48 }} />
-          </View>
-          </TouchableWithoutFeedback>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
