@@ -426,7 +426,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     ...SHADOW.soft,
   },
-  decideBtnDisabled: { opacity: 0.6 },
+  decideBtnDisabled: { backgroundColor: COLORS.forestLight },
   decideBtnLabel: {
     fontFamily: FONTS.sans.medium,
     fontSize: SIZES.base,

@@ -419,7 +419,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     ...SHADOW.soft,
   },
-  goBtnDisabled: { opacity: 0.6 },
+  goBtnDisabled: { backgroundColor: COLORS.forestLight },
   goBtnLabel: {
     fontFamily: FONTS.sans.medium,
     fontSize: SIZES.base,
