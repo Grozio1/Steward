@@ -254,7 +254,7 @@ The `stub.js` layer matches the interface the real API will use, so the switch f
 - The three mode screens (Deploy, Decide, Navigate) are bottom tabs — persistent, always accessible
 
 ### Keyboard behavior
-All profile list row inputs (`CommitmentRow`, `DebtRow`, `InvestmentRow`, `GoalRow`) include `returnKeyType="done"` and `onSubmitEditing={() => Keyboard.dismiss()}` so the keyboard's Done button works in every field. The profile `ScrollView` wraps its content in `TouchableWithoutFeedback` so tapping any blank area dismisses the keyboard without triggering any action. `keyboardShouldPersistTaps="handled"` ensures pill selectors, type toggles, and the payroll deducted toggle remain tappable while the keyboard is up.
+All profile list row inputs (`CommitmentRow`, `DebtRow`, `InvestmentRow`, `GoalRow`) include `returnKeyType="done"` and `onSubmitEditing={() => Keyboard.dismiss()}` so the keyboard's Done button works in every field. The profile `ScrollView` uses `keyboardDismissMode="on-drag"` and `onScrollBeginDrag={() => Keyboard.dismiss()}` — the native iOS pattern that dismisses the keyboard as the user scrolls down to reach buttons below the fold. `keyboardShouldPersistTaps="handled"` ensures pill selectors, type toggles, and the payroll deducted toggle remain tappable while the keyboard is up.
 
 ### Inline editing
 Edit forms appear inline within their parent modal, not as separate screens. They use the `parchmentDark` background (`detail.editForm` style) to visually separate the edit state from the list. Cancel always restores previous state without saving.
