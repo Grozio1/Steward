@@ -3,10 +3,12 @@ import { View, ActivityIndicator } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { COLORS } from '../constants/brand';
 import { getProfile } from '../data/store';
+import { isAnnualReviewDue } from '../ai/annualReview';
 
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import SynthesisScreen from '../screens/onboarding/SynthesisScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import AnnualReviewScreen from '../screens/reprofile/AnnualReviewScreen';
 import MainNavigator from './MainNavigator';
 
 const Stack = createNativeStackNavigator();
@@ -14,10 +16,21 @@ const Stack = createNativeStackNavigator();
 export default function RootNavigator() {
   const [loading, setLoading] = useState(true);
   const [initialRoute, setInitialRoute] = useState('Onboarding');
+  const [reviewProfile, setReviewProfile] = useState(null);
 
   useEffect(() => {
-    getProfile().then((profile) => {
-      setInitialRoute(profile ? 'Main' : 'Onboarding');
+    getProfile().then(async (profile) => {
+      if (!profile) {
+        setInitialRoute('Onboarding');
+      } else {
+        const due = await isAnnualReviewDue(profile);
+        if (due) {
+          setReviewProfile(profile);
+          setInitialRoute('AnnualReview');
+        } else {
+          setInitialRoute('Main');
+        }
+      }
       setLoading(false);
     });
   }, []);
@@ -38,6 +51,13 @@ export default function RootNavigator() {
       {/* Onboarding flow — always registered so we can navigate here after reset */}
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="Synthesis" component={SynthesisScreen} />
+
+      {/* Annual re-profile — shown when 365+ days since last review */}
+      <Stack.Screen
+        name="AnnualReview"
+        component={AnnualReviewScreen}
+        initialParams={reviewProfile ? { profile: reviewProfile } : undefined}
+      />
 
       {/* Main app */}
       <Stack.Screen name="Main" component={MainNavigator} />
