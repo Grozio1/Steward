@@ -16,6 +16,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
 import { getProfile, getPlan, getSpends, addSpend, currentMonth, formatCurrency, getTransfers, addTransfer, deleteTransfer, netTransferred, savePlan, updateGoalBalance, updateInvestmentBalance } from '../../data/store';
 import { getDailyObservation, generatePlan } from '../../ai/claude';
+import { detectAnomalies, getUnacknowledgedAnomalies, acknowledgeAnomaly } from '../../ai/anomalyDetection';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 import { Ionicons } from '@expo/vector-icons';
@@ -713,6 +714,7 @@ export default function DashboardScreen({ navigation }) {
   const [logVisible, setLogVisible] = useState(false);
   const [detailAllocation, setDetailAllocation] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [anomalies, setAnomalies] = useState([]);
   const month = currentMonth();
 
   const load = useCallback(async () => {
@@ -782,6 +784,10 @@ export default function DashboardScreen({ navigation }) {
         return { ...alloc, spent: categorySpends };
       });
       setPlan({ ...pl, allocations: updatedAllocations });
+    }
+
+    if (p) {
+      detectAnomalies(p).then(() => getUnacknowledgedAnomalies()).then(setAnomalies);
     }
   }, [month]);
 
@@ -903,6 +909,31 @@ export default function DashboardScreen({ navigation }) {
       >
         {/* Month label */}
         <StewardText style={styles.monthLabel}>{monthLabel}</StewardText>
+
+        {/* Anomaly cards — quiet pattern observations, no alarm tone */}
+        {anomalies.map(anomaly => (
+          <StewardCard key={anomaly.id} variant="parchment" style={styles.anomalyCard}>
+            <View style={styles.anomalyRow}>
+              <FlameIcon size={16} bgColor={COLORS.ember} />
+              <StewardText variant="stewardVoice" style={{ flex: 1 }}>{anomaly.message}</StewardText>
+              <TouchableOpacity
+                onPress={() => {
+                  acknowledgeAnomaly(anomaly.id);
+                  setAnomalies(prev => prev.filter(a => a.id !== anomaly.id));
+                }}
+                style={{ paddingLeft: SPACING.sm }}
+              >
+                <StewardText variant="caption" color={COLORS.sage}>Noted</StewardText>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.anomalyFooter}>
+              <StewardText variant="caption" color={COLORS.sage}>Something change?</StewardText>
+              <TouchableOpacity onPress={() => navigation.navigate('Navigate')}>
+                <StewardText variant="caption" color={COLORS.ember}>Navigate</StewardText>
+              </TouchableOpacity>
+            </View>
+          </StewardCard>
+        ))}
 
         {/* Daily observation */}
         {observation ? (
@@ -1065,6 +1096,23 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans.light,
     fontSize: SIZES.sm,
     color: COLORS.placeholder,
+  },
+  anomalyCard: {
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.ember,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+  },
+  anomalyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  anomalyFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
   },
   observationCard: { paddingVertical: SPACING.sm + 2 },
   observationText: {
