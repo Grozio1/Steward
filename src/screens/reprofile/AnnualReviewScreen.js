@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveProfile, formatCurrency } from '../../data/store';
 import { generateAnnualReview } from '../../ai/annualReview';
 import StewardText from '../../components/StewardText';
@@ -111,6 +112,14 @@ function LedgerStep({ loading, reviewData, profile, pulse }) {
           </View>
         </StewardCard>
       ))}
+
+      {(reviewData?.yearData?.anomalies?.length || 0) > 0 && (
+        <StewardCard variant="parchment">
+          <StewardText variant="caption" color={COLORS.sage}>
+            {`We flagged ${reviewData.yearData.anomalies.length} pattern${reviewData.yearData.anomalies.length === 1 ? '' : 's'} during the year. They're reflected in the findings below.`}
+          </StewardText>
+        </StewardCard>
+      )}
     </View>
   );
 }
@@ -485,6 +494,12 @@ export default function AnnualReviewScreen({ route, navigation }) {
       debts: updatedDebts,
       lastReprofileDate: new Date().toISOString(),
     });
+
+    try {
+      await AsyncStorage.setItem('steward_anomalies', JSON.stringify([]));
+    } catch (err) {
+      console.error('[AnnualReview] clear anomalies failed:', err);
+    }
 
     navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
   };

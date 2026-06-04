@@ -30,7 +30,7 @@ export async function generateAnnualReview(profile) {
     ];
 
     const ranked = rankFindings(allFindings);
-    const voiced = await voiceFindings(ranked, profile);
+    const voiced = await voiceFindings(ranked, profile, yearData.anomalies);
     const recommendations = deriveRecommendations(ranked);
 
     await saveAnnualSnapshot({ profile, findings: voiced, recommendations });
@@ -61,15 +61,20 @@ export async function isAnnualReviewDue(profile) {
 async function loadYearData(profile) {
   const months = trailingMonthKeys(12);
 
-  const [plans, spends, transfers, fixedOverrides, debtActuals] = await Promise.all([
+  const [plans, spends, transfers, fixedOverrides, debtActuals, anomaliesRaw] = await Promise.all([
     loadMonthly('steward_plan', months),
     loadMonthly('steward_spends', months),
     loadMonthly('steward_transfers', months),
     loadMonthly('steward_fixed_overrides', months),
     loadMonthly('steward_debt_actuals', months),
+    AsyncStorage.getItem('steward_anomalies'),
   ]);
 
-  return { months, plans, spends, transfers, fixedOverrides, debtActuals, profile };
+  const twelveMonthsAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+  const anomalies = (anomaliesRaw ? JSON.parse(anomaliesRaw) : [])
+    .filter(a => a.detectedAt >= twelveMonthsAgo);
+
+  return { months, plans, spends, transfers, fixedOverrides, debtActuals, profile, anomalies };
 }
 
 async function loadMonthly(prefix, months) {
@@ -384,7 +389,7 @@ function rankFindings(findings) {
 // One call produces observation + implication text for every finding.
 // Fallbacks ensure the flow never breaks on API failure.
 
-async function voiceFindings(findings, profile) {
+async function voiceFindings(findings, profile, anomalies = []) {
   if (findings.length === 0) return [];
 
   const systemPrompt = `You are Steward — a financial life companion with the voice of a wise, warm grandparent or parent. Direct. Plain-spoken. Never clinical. Never jargon. Always on their side.
@@ -403,6 +408,9 @@ Rules:
 
 Findings from the past 12 months:
 ${JSON.stringify(findings, null, 2)}
+
+Mid-year pattern flags (from anomaly detection):
+${JSON.stringify(anomalies.map(a => ({ type: a.type, message: a.message, date: a.detectedAt })))}
 
 Return ONLY a JSON array. No markdown, no preamble. Each element:
 { "id": "<finding id>", "observation": "<sentence>", "implication": "<sentence>" }`;
