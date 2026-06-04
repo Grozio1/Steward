@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
-import { getProfile, getPlan, formatCurrency } from '../../data/store';
+import { getProfile, getPlan, formatCurrency, saveLifeEvent } from '../../data/store';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 
@@ -154,6 +154,7 @@ export default function NavigateScreen() {
     await new Promise((r) => setTimeout(r, 900));
     const result = generateResponse({ eventId: selectedEvent.id, context, profile, plan });
     setResponse(result);
+    saveLifeEvent({ event: selectedEvent.label, notes: context });
     setThinking(false);
   };
 

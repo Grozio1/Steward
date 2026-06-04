@@ -8,18 +8,20 @@
 // Used by:      src/screens/biography/BiographyScreen.js (Pro tier)
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLifeEvents } from '../data/store';
 
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 export async function loadBiography(profile) {
   try {
-    const [snapshots, currentYearData] = await Promise.all([
+    const [snapshots, currentYearData, navigateEvents] = await Promise.all([
       loadSnapshots(),
       loadCurrentYear(profile),
+      getLifeEvents(),
     ]);
 
-    const chapters = buildChapters(profile, snapshots, currentYearData);
-    const milestones = extractMilestones(snapshots, currentYearData);
+    const chapters = buildChapters(profile, snapshots, currentYearData, navigateEvents);
+    const milestones = extractMilestones(snapshots, currentYearData, navigateEvents);
     const totals = computeTotals(chapters);
     const netWorthArc = buildNetWorthArc(profile, snapshots, currentYearData);
 
@@ -117,7 +119,7 @@ async function loadCurrentYear(profile) {
 // ─── Chapter builder ──────────────────────────────────────────────────────────
 // One chapter per calendar year. Oldest first, current year last (reversed for display).
 
-function buildChapters(profile, snapshots, currentYearData) {
+function buildChapters(profile, snapshots, currentYearData, navigateEvents) {
   const chapters = [];
   const startYear = new Date(profile.createdAt).getFullYear();
   const currentYear = new Date().getFullYear();
@@ -135,7 +137,7 @@ function buildChapters(profile, snapshots, currentYearData) {
   // Past years — from most recent backward to start year
   for (let year = currentYear - 1; year >= startYear; year--) {
     const snapshot = snapshotByYear[year];
-    chapters.push(buildHistoricalChapter(year, snapshot, startYear, profile));
+    chapters.push(buildHistoricalChapter(year, snapshot, startYear, profile, navigateEvents));
   }
 
   return chapters;
@@ -163,7 +165,11 @@ function buildCurrentChapter(data, profile) {
   };
 }
 
-function buildHistoricalChapter(year, snapshot, startYear, profile) {
+function buildHistoricalChapter(year, snapshot, startYear, profile, navigateEvents) {
+  const navigateForYear = (navigateEvents || [])
+    .filter(e => e.year === year)
+    .map(e => e.event);
+
   if (!snapshot) {
     // No snapshot — limited data, build stub chapter
     return {
@@ -175,7 +181,7 @@ function buildHistoricalChapter(year, snapshot, startYear, profile) {
       income: null,
       debtPaid: 0,
       savingsBuilt: 0,
-      lifeEvents: [],
+      lifeEvents: navigateForYear,
       priorities: [],
     };
   }
@@ -189,8 +195,8 @@ function buildHistoricalChapter(year, snapshot, startYear, profile) {
   const totalDebtPaid = debtFindings.reduce((s, f) => s + (f.totalPaid || 0), 0);
   const savingsBuilt = stabilityFinding?.netBuilt || 0;
 
-  // Extract life events from the snapshot if they were stored
-  const lifeEvents = snapshot.lifeEvents || [];
+  // Extract life events from the snapshot, merged with any Navigate events for this year
+  const lifeEvents = [...(snapshot.lifeEvents || []), ...navigateForYear];
 
   // Find accepted recommendations for display
   const acceptedRecs = (snapshot.recommendations || []).filter(r => r.accept);
@@ -225,7 +231,7 @@ function buildHistoricalChapter(year, snapshot, startYear, profile) {
 // ─── Milestones ───────────────────────────────────────────────────────────────
 // Significant moments extracted from snapshot findings and profile data.
 
-function extractMilestones(snapshots, currentYearData) {
+function extractMilestones(snapshots, currentYearData, navigateEvents) {
   const milestones = [];
 
   snapshots.forEach(snapshot => {
@@ -266,6 +272,16 @@ function extractMilestones(snapshots, currentYearData) {
           type: 'life',
         });
       }
+    });
+  });
+
+  // Navigate events as life milestones
+  (navigateEvents || []).forEach(e => {
+    milestones.push({
+      date: formatMonthYear(e.date),
+      year: e.year,
+      label: e.event,
+      type: 'life',
     });
   });
 

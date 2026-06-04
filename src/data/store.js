@@ -158,6 +158,35 @@ export function netTransferred(transfers, layer) {
     .reduce((sum, t) => t.type === 'deposit' ? sum + t.amount : sum - t.amount, 0);
 }
 
+// ─── Life events (Navigate) ────────────────────────────────────────────────────
+export async function saveLifeEvent({ event, notes }) {
+  try {
+    const raw = await AsyncStorage.getItem('steward_life_events');
+    const existing = raw ? JSON.parse(raw) : [];
+    const now = new Date();
+    const record = {
+      id: 'evt_' + Date.now(),
+      date: now.toISOString(),
+      year: now.getFullYear(),
+      month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+      event,
+      notes: notes || null,
+    };
+    await AsyncStorage.setItem('steward_life_events', JSON.stringify([...existing, record]));
+  } catch (err) {
+    console.error('[store] saveLifeEvent failed:', err);
+  }
+}
+
+export async function getLifeEvents() {
+  try {
+    const raw = await AsyncStorage.getItem('steward_life_events');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
 // ─── Dev utility ───────────────────────────────────────────────────────────────
 export async function clearAll() {
   await AsyncStorage.clear();
