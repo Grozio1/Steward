@@ -914,6 +914,24 @@ export default function DashboardScreen({ navigation }) {
           </StewardCard>
         ) : null}
 
+        {/* Your story — Pro tier entry point */}
+        {profile?.tier === 'pro' && (
+          <TouchableOpacity
+            style={styles.storyRow}
+            onPress={() => navigation.navigate('Biography', { profile })}
+            activeOpacity={0.7}
+          >
+            <View style={{ flex: 1 }}>
+              <StewardText style={styles.storyLabel}>Your financial story</StewardText>
+              <StewardText style={styles.storyHint}>A complete look at your progress over time</StewardText>
+            </View>
+            <View style={styles.proBadge}>
+              <StewardText style={styles.proLabel}>PRO</StewardText>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.placeholder} />
+          </TouchableOpacity>
+        )}
+
         {/* Month summary */}
         {plan && (
           <StewardCard variant="forest" style={styles.summaryCard}>
@@ -1093,6 +1111,39 @@ const styles = StyleSheet.create({
     ...SHADOW.medium,
   },
   fabLabel: { fontFamily: FONTS.sans.medium, fontSize: SIZES.base, color: COLORS.white },
+  storyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    gap: SPACING.sm,
+    ...SHADOW.soft,
+  },
+  storyLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.base,
+    color: COLORS.hearth,
+  },
+  storyHint: {
+    fontFamily: FONTS.sans.light,
+    fontSize: SIZES.xs,
+    color: COLORS.placeholder,
+    marginTop: 2,
+  },
+  proBadge: {
+    backgroundColor: COLORS.emberMuted,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.xs + 2,
+    paddingVertical: 2,
+  },
+  proLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: 9,
+    color: COLORS.ember,
+    letterSpacing: 0.5,
+  },
 });
 
 const modal = StyleSheet.create({

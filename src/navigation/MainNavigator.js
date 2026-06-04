@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SPACING } from '../constants/brand';
 
@@ -8,8 +9,10 @@ import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import DeployScreen from '../screens/deploy/DeployScreen';
 import DecideScreen from '../screens/decide/DecideScreen';
 import NavigateScreen from '../screens/navigate/NavigateScreen';
+import BiographyScreen from '../screens/biography/BiographyScreen';
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 const TAB_ICONS = {
   Dashboard: { default: 'grid-outline',        focused: 'grid' },
@@ -18,7 +21,7 @@ const TAB_ICONS = {
   Navigate:  { default: 'compass-outline',      focused: 'compass' },
 };
 
-export default function MainNavigator() {
+function Tabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -39,6 +42,19 @@ export default function MainNavigator() {
       <Tab.Screen name="Decide"    component={DecideScreen} />
       <Tab.Screen name="Navigate"  component={NavigateScreen} />
     </Tab.Navigator>
+  );
+}
+
+export default function MainNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Tabs" component={Tabs} />
+      <Stack.Screen
+        name="Biography"
+        component={BiographyScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+    </Stack.Navigator>
   );
 }
 
