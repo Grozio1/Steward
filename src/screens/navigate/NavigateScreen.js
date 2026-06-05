@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
 import { getProfile, getPlan, formatCurrency, saveLifeEvent, saveCrisis, resolveCrisis, getActiveCrises, CRISIS_MODELS } from '../../data/store';
 import { toMonthly } from '../../ai/stub';
+import { generateCrisisResponse } from '../../ai/claude';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 
@@ -118,6 +119,94 @@ function generateResponse({ eventId, context, profile, plan }) {
     flexible,
     recoverySteps,
   };
+}
+
+// ─── Parse raw API crisis response into the existing response shape ───────────────
+// Inventory (income, savings, obligations, runway, flexible) is computed from
+// profile data so the structured WHAT YOU HAVE card always shows accurate numbers.
+// Acknowledgment, firstAction, and recoverySteps come from the API text.
+function parseCrisisResponse(text, profile, plan) {
+  const savings = Number(profile?.savings) || 0;
+  const income = plan?.income || toMonthly(profile?.netIncome, profile?.payFrequency);
+  const fixedTotal = (profile?.fixedCommitments || []).reduce(
+    (s, c) => s + Number(c.monthlyAmount || c.amount || 0), 0
+  );
+  const debtMin = (profile?.debts || []).reduce((s, d) => s + Number(d.minimum || 0), 0);
+  const monthlyObligations = fixedTotal + debtMin;
+  const runway = monthlyObligations > 0 ? Math.floor(savings / monthlyObligations) : null;
+  const flexible = (profile?.fixedCommitments || []).filter(
+    (c) => !['rent', 'mortgage'].some((k) => c.name?.toLowerCase().includes(k))
+  );
+
+  // Locate section headers (case-insensitive)
+  const wyhIdx = text.search(/WHAT YOU HAVE/i);
+  const dtfIdx = text.search(/DO THIS FIRST/i);
+  const raIdx  = text.search(/RECOVERY ARC/i);
+
+  // Acknowledgment: everything before the first section header
+  const firstHeader = [wyhIdx, dtfIdx, raIdx].filter((i) => i >= 0).sort((a, b) => a - b)[0] ?? text.length;
+  const acknowledgment = text.slice(0, firstHeader)
+    .replace(/^[#*]+\s*/gm, '')
+    .trim() || `Something changed. Let's look at what you have and figure out the right next step.`;
+
+  // DO THIS FIRST — text between its header and RECOVERY ARC (or end)
+  let firstAction = "Write down the one thing that feels most urgent right now. That's where we start.";
+  if (dtfIdx >= 0) {
+    const afterDtf = text.slice(dtfIdx + 'DO THIS FIRST'.length);
+    const endIdx = raIdx > dtfIdx ? raIdx - dtfIdx - 'DO THIS FIRST'.length : afterDtf.length;
+    const parsed = afterDtf.slice(0, endIdx)
+      .replace(/^[\s:*#\-•]+/, '')
+      .replace(/\*\*/g, '')
+      .trim();
+    if (parsed) firstAction = parsed;
+  }
+
+  // RECOVERY ARC — parse step lines into { week, label, detail }
+  let recoverySteps = [];
+  if (raIdx >= 0) {
+    const arcText = text.slice(raIdx + 'RECOVERY ARC'.length);
+    const tfRe = /^[-*•\d.]\s*(Now|(?:Week|Month|Day)s?\s+[\d–\-+]+)/i;
+    let current = null;
+
+    for (const raw of arcText.split('\n')) {
+      const line = raw.trim();
+      if (!line) continue;
+      const m = line.match(tfRe);
+      if (m) {
+        if (current) recoverySteps.push(current);
+        const body = line.slice(m[0].length).replace(/^[\s:–—]+/, '').replace(/\*\*/g, '');
+        const colonIdx = body.indexOf(':');
+        const dotIdx   = body.indexOf('.');
+        let label, detail;
+        if (colonIdx > 0 && colonIdx < 35) {
+          label  = body.slice(0, colonIdx).trim();
+          detail = body.slice(colonIdx + 1).trim();
+        } else if (dotIdx > 0 && dotIdx < 40) {
+          label  = body.slice(0, dotIdx).trim();
+          detail = body.slice(dotIdx + 1).trim();
+        } else {
+          label  = m[1];
+          detail = body;
+        }
+        current = { week: m[1], label, detail };
+      } else if (current && !/^(WHAT YOU HAVE|DO THIS FIRST|RECOVERY ARC)/i.test(line)) {
+        current.detail += ' ' + line.replace(/\*\*/g, '').trim();
+      }
+    }
+    if (current) recoverySteps.push(current);
+  }
+
+  // Fallback if parsing yielded too few steps
+  if (recoverySteps.length < 2) {
+    recoverySteps = [
+      { week: 'Now',      label: 'Protect the floor', detail: `Fixed costs and debt minimums — ${formatCurrency(monthlyObligations)}/mo — come first, always.` },
+      { week: 'Week 1–2', label: 'Assess',            detail: 'Know exactly what you have. Then decide what can wait.' },
+      { week: 'Month 1',  label: 'Stabilize',         detail: 'One month of covering obligations without adding debt is a win.' },
+      { week: 'Month 2+', label: 'Recover',           detail: 'Once stable, start rebuilding the buffer. One step at a time.' },
+    ];
+  }
+
+  return { acknowledgment, firstAction, savings, income, monthlyObligations, runway, flexible, recoverySteps };
 }
 
 // ─── Crisis check-in card ─────────────────────────────────────────────────────────
@@ -258,8 +347,20 @@ export default function NavigateScreen({ route }) {
     if (!selectedEvent) return;
     setThinking(true);
     setResponse(null);
-    await new Promise((r) => setTimeout(r, 900));
-    const result = generateResponse({ eventId: selectedEvent.id, context, profile, plan });
+
+    let result;
+    if (selectedEvent.id === 'other') {
+      try {
+        const rawText = await generateCrisisResponse(context, profile);
+        result = parseCrisisResponse(rawText, profile, plan);
+      } catch {
+        result = generateResponse({ eventId: 'other', context, profile, plan });
+      }
+    } else {
+      await new Promise((r) => setTimeout(r, 900));
+      result = generateResponse({ eventId: selectedEvent.id, context, profile, plan });
+    }
+
     setResponse(result);
     saveLifeEvent({ event: selectedEvent.label, notes: context });
     const model = CRISIS_MODELS[selectedEvent.id] ?? CRISIS_MODELS.other;

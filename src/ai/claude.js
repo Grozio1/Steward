@@ -61,6 +61,30 @@ export async function getDailyObservation(profile, context = {}) {
   }
 }
 
+// ─── Crisis response (Something else) ────────────────────────────────────────
+// Sonnet — personalized crisis response for free-text life events.
+// Returns raw text; caller is responsible for parsing and fallback.
+export async function generateCrisisResponse(context, profile) {
+  const fixedTotal = (profile?.fixedCommitments || []).reduce(
+    (s, c) => s + Number(c.monthlyAmount || c.amount || 0), 0
+  );
+  const debtTotal = (profile?.debts || []).reduce((s, d) => s + Number(d.balance || 0), 0);
+
+  const parts = [context.trim()];
+  if (profile?.name)    parts.push(`Name: ${profile.name}`);
+  if (profile?.netIncome) parts.push(`Monthly take-home: $${Number(profile.netIncome).toLocaleString()}`);
+  if (profile?.savings)   parts.push(`Liquid savings: $${Number(profile.savings).toLocaleString()}`);
+  if (fixedTotal > 0)   parts.push(`Fixed commitments: $${fixedTotal.toLocaleString()}/mo`);
+  if (debtTotal > 0)    parts.push(`Total debt: $${debtTotal.toLocaleString()}`);
+
+  return call(
+    'claude-sonnet-4-20250514',
+    'You are Steward, a financial life companion with a parent/grandparent voice — warm, direct, plain-spoken. The user is describing a personal or financial crisis in their own words. Respond with: one acknowledgment sentence (human first, never numbers first), then a section called WHAT YOU HAVE that summarizes their financial position in 2-3 bullet points using the profile data provided, then DO THIS FIRST with one concrete action they can take today, then a RECOVERY ARC with 3-4 steps with timeframes. Use plain language. No jargon. Never generic. Always specific to what they described.',
+    parts.join('\n'),
+    600,
+  );
+}
+
 // ─── Onboarding synthesis ──────────────────────────────────────────────────────
 // Sonnet — full profile → JSON { summary, keyInsight, name }.
 export async function generateSynthesis(profile) {
