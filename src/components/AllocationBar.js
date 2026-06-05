@@ -10,6 +10,7 @@ export default function AllocationBar({ allocation }) {
   const pct = amount > 0 ? Math.min(1, spent / amount) : 0;
   const over = !isAdhoc && spent > amount;
   const remaining = amount - spent;
+  const displayLeft = Math.max(0, remaining);
   const barColor = over ? COLORS.ember : COLORS.forest;
 
   return (
@@ -49,8 +50,8 @@ export default function AllocationBar({ allocation }) {
           ? spent > 0 ? `${formatCurrency(spent)} logged` : note
           : over
           ? `${formatCurrency(Math.abs(remaining))} over`
-          : remaining > 0
-          ? `${formatCurrency(remaining)} left`
+          : displayLeft > 0
+          ? `${formatCurrency(displayLeft)} left`
           : note || ''}
       </StewardText>
     </View>
