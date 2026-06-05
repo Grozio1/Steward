@@ -1,9 +1,10 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, AppState } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SPACING } from '../constants/brand';
+import { getActiveCrises } from '../data/store';
 
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import DeployScreen from '../screens/deploy/DeployScreen';
@@ -23,6 +24,25 @@ const TAB_ICONS = {
 };
 
 function Tabs() {
+  const [dueCount, setDueCount] = useState(0);
+
+  const checkDue = async () => {
+    const crises = await getActiveCrises();
+    const count = crises.filter((c) => {
+      const ref = c.lastCheckedIn || c.startDate;
+      return Math.floor((Date.now() - new Date(ref)) / 86400000) >= c.checkInDays;
+    }).length;
+    setDueCount(count);
+  };
+
+  useEffect(() => {
+    checkDue();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') checkDue();
+    });
+    return () => sub.remove();
+  }, []);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -41,7 +61,15 @@ function Tabs() {
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Deploy"    component={DeployScreen} />
       <Tab.Screen name="Decide"    component={DecideScreen} />
-      <Tab.Screen name="Navigate"  component={NavigateScreen} />
+      <Tab.Screen
+        name="Navigate"
+        component={NavigateScreen}
+        options={{
+          tabBarBadge: dueCount > 0 ? dueCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: COLORS.ember, fontSize: 10 },
+        }}
+        listeners={{ tabPress: checkDue }}
+      />
     </Tab.Navigator>
   );
 }
