@@ -45,11 +45,11 @@ export default function AllocationBar({ allocation }) {
       )}
 
       {/* Remaining / note */}
-      <StewardText style={styles.note}>
+      <StewardText style={[styles.note, over && styles.over]}>
         {isAdhoc
           ? spent > 0 ? `${formatCurrency(spent)} logged` : note
           : over
-          ? `${formatCurrency(Math.abs(remaining))} over`
+          ? 'Over'
           : displayLeft > 0
           ? `${formatCurrency(displayLeft)} left`
           : note || ''}
