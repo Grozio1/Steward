@@ -350,6 +350,22 @@ export default function BiographyScreen({ route, navigation }) {
             </View>
           </StewardCard>
 
+          
+          {/* Peer benchmarking entry — Pro only */}
+          <TouchableOpacity
+            style={s.benchmarkRow}
+            onPress={() => navigation.navigate('PeerBenchmark')}
+            activeOpacity={0.8}
+          >
+            <View style={{ flex: 1 }}>
+              <StewardText variant="bodyMedium">How you compare</StewardText>
+              <StewardText variant="caption" style={{ marginTop: 2, color: COLORS.sage }}>
+                Anonymous peer benchmarks by life stage and income
+              </StewardText>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.sage} />
+          </TouchableOpacity>
+
           {/* Vertical timeline */}
           <View style={s.timeline}>
             {timelineItems.map((item, i) => {
@@ -450,6 +466,17 @@ const s = StyleSheet.create({
     width: 1,
     height: 28,
     backgroundColor: COLORS.forestLight,
+  },
+  
+  benchmarkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    marginBottom: SPACING.md,
+    ...SHADOW.soft,
   },
   timeline: {
     paddingLeft: SPACING.xs,

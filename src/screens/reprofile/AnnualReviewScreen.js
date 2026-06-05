@@ -426,6 +426,7 @@ function PlanStep({ recommendations, accepted, income, profile }) {
 // ─── Main screen ───────────────────────────────────────────────────────────────
 
 export default function AnnualReviewScreen({ route, navigation }) {
+  const { forceOpen = false } = route?.params ?? {};
   const profile = route.params?.profile;
 
   const [step, setStep] = useState(0);
@@ -445,7 +446,25 @@ export default function AnnualReviewScreen({ route, navigation }) {
 
   useEffect(() => {
     if (!profile) {
-      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+      // Launched manually from ProfileScreen — load profile from storage
+      import('../../data/store').then(({ getProfile }) => getProfile()).then(stored => {
+        if (!stored) {
+          navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+          return;
+        }
+        // Re-init local state from stored profile then kick off review
+        setIncome(String(stored.netIncome || ''));
+        const init = {};
+        (stored.debts || []).forEach(d => { init[d.name] = String(d.balance); });
+        setDebtBalances(init);
+        generateAnnualReview(stored).then(data => {
+          setReviewData(data);
+          const initial = {};
+          (data.recommendations || []).forEach(r => { initial[r.id] = r.accept; });
+          setAcceptedRecs(initial);
+          setLoading(false);
+        });
+      });
       return;
     }
 

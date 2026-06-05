@@ -10,6 +10,7 @@ import DeployScreen from '../screens/deploy/DeployScreen';
 import DecideScreen from '../screens/decide/DecideScreen';
 import NavigateScreen from '../screens/navigate/NavigateScreen';
 import BiographyScreen from '../screens/biography/BiographyScreen';
+import PeerBenchmarkScreen from '../screens/benchmark/PeerBenchmarkScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();

@@ -76,6 +76,7 @@ export async function generatePlan(profile) {
     netIncome,
     payFrequency,
     fixedCommitments = [],
+    regularExpenses = [],
     debts = [],
     savings,
     savingsGoals = [],
@@ -92,6 +93,7 @@ export async function generatePlan(profile) {
 
   const netInc = toMonthly(netIncome, payFrequency);
   const fixedTotal = fixedCommitments.reduce((s, c) => s + Number(c.monthlyAmount || c.amount), 0);
+  const totalRegular = regularExpenses.reduce((s, r) => s + Number(r.monthlyEstimate || 0), 0);
   const debtMinimums = debts.reduce((s, d) => s + Number(d.minimum || 0), 0);
   let remaining = netInc - fixedTotal - debtMinimums;
 
@@ -168,8 +170,8 @@ export async function generatePlan(profile) {
     remaining -= accel;
   }
 
-  // Layer 4 — Stability buffer (if savings < 3 months of fixed costs)
-  const safetyTarget = (fixedTotal + debtMinimums) * 3;
+  // Layer 4 — Stability buffer (if savings < 3 months of fixed + regular costs)
+  const safetyTarget = (fixedTotal + totalRegular + debtMinimums) * 3;
   if (Number(savings) < safetyTarget && remaining > 150) {
     const buffer = Math.min(250, Math.round(remaining * 0.18));
     const monthsToGoal = Math.ceil((safetyTarget - Number(savings)) / buffer);
@@ -205,6 +207,24 @@ export async function generatePlan(profile) {
       goalSaved: saved,
     });
     remaining -= monthly;
+  }
+
+  // Layer 4.5 — Regular expenses
+  if (totalRegular > 0) {
+    const regularAlloc = Math.min(totalRegular, Math.max(0, remaining));
+    allocations.push({
+      layer: 'regular_expenses',
+      name: 'Regular expenses',
+      amount: regularAlloc,
+      spent: 0,
+      note: 'Variable by nature. Deploy as you spend.',
+      items: regularExpenses.map((r) => ({
+        name: r.name,
+        amount: Number(r.monthlyEstimate || 0),
+        category: r.category,
+      })),
+    });
+    remaining -= regularAlloc;
   }
 
   // Layer 5 — Food

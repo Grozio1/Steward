@@ -63,6 +63,18 @@ export default function OnboardingScreen({ navigation }) {
 
   // Format a user answer into a readable string for the bubble
   const formatUserAnswer = (key, value) => {
+    if (key === 'lifeStageSignal') {
+      const labels = { starting_out: 'Just starting out', building_career: 'Building my career', growing_household: 'Managing a growing household', peak_earning: 'Peak earning years', pre_retirement: 'Thinking about retirement', retired: 'Already retired' };
+      return labels[value] || value;
+    }
+    if (key === 'household') {
+      const labels = { solo: 'Just me', partner: 'Me and a partner', family: 'My family' };
+      return labels[value] || value;
+    }
+    if (key === 'confidenceSignal') {
+      const labels = { finding_footing: 'Finding my footing', making_progress: 'Making progress but not where I want to be', stable: 'Stable but could be optimised', major_change: 'Navigating a major change' };
+      return labels[value] || value;
+    }
     if (key === 'payFrequency') {
       const labels = { weekly: 'Weekly', biweekly: 'Every two weeks', 'semi-monthly': 'Twice a month', monthly: 'Once a month' };
       return labels[value] || value;

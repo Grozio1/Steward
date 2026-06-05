@@ -26,6 +26,7 @@ export function formatCurrency(n) {
 //   netIncome: number,
 //   payFrequency: 'weekly' | 'biweekly' | 'monthly',
 //   fixedCommitments: [{ name, amount }],
+//   regularExpenses: [{ name, category, monthlyEstimate }],
 //   debts: [{ name, balance, minimum, rate }],
 //   savings: number,
 //   goals: string,

@@ -4,9 +4,46 @@
 
 export const STEPS = [
   {
-    id: 'welcome',
+    id: 'lifeStage',
     getMessage: () =>
-      "I'm Steward.\n\nBefore we look at any numbers — what does better actually look like for you? What would you notice first if things were on track?",
+      "I'm Steward.\n\nWhere are you in life right now?",
+    inputType: 'choice',
+    key: 'lifeStageSignal',
+    choices: [
+      { label: 'Just starting out', value: 'starting_out' },
+      { label: 'Building my career', value: 'building_career' },
+      { label: 'Managing a growing household', value: 'growing_household' },
+      { label: 'Peak earning years', value: 'peak_earning' },
+      { label: 'Thinking about retirement', value: 'pre_retirement' },
+      { label: 'Already retired', value: 'retired' },
+    ],
+  },
+  {
+    id: 'household',
+    getMessage: () => "Who are you managing this for?",
+    inputType: 'choice',
+    key: 'household',
+    choices: [
+      { label: 'Just me', value: 'solo' },
+      { label: 'Me and a partner', value: 'partner' },
+      { label: 'My family', value: 'family' },
+    ],
+  },
+  {
+    id: 'confidenceSignal',
+    getMessage: () => "How would you describe your financial situation right now?",
+    inputType: 'choice',
+    key: 'confidenceSignal',
+    choices: [
+      { label: 'Finding my footing', value: 'finding_footing' },
+      { label: 'Making progress but not where I want to be', value: 'making_progress' },
+      { label: 'Stable but could be optimised', value: 'stable' },
+      { label: 'Navigating a major change', value: 'major_change' },
+    ],
+  },
+  {
+    id: 'priorities',
+    getMessage: () => "What matters most to you right now?",
     inputType: 'text',
     key: 'priorities',
     placeholder: 'Take your time...',

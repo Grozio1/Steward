@@ -67,6 +67,74 @@ function PillRow({ options, selected, onSelect }) {
   );
 }
 
+// ─── Regular expense row ─────────────────────────────────────────────────────────
+const REGULAR_EXPENSE_CATEGORIES = [
+  { label: 'Transport', value: 'transport' },
+  { label: 'Food', value: 'food' },
+  { label: 'Household', value: 'household' },
+  { label: 'Personal care', value: 'personal_care' },
+  { label: 'Children', value: 'children' },
+  { label: 'Pets', value: 'pets' },
+  { label: 'Other', value: 'other' },
+];
+
+function RegularExpenseRow({ item, onChange, onRemove }) {
+  return (
+    <StewardCard style={s.listCard}>
+      {/* Name + Done */}
+      <View style={[s.listRow, { marginBottom: SPACING.sm }]}>
+        <TextInput
+          style={[s.listInput, { flex: 1 }]}
+          value={item.name}
+          onChangeText={(v) => onChange({ ...item, name: v })}
+          placeholder="e.g. Gas"
+          placeholderTextColor={COLORS.placeholder}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
+        />
+        <TouchableOpacity onPress={() => Keyboard.dismiss()} style={{ paddingLeft: SPACING.sm }}>
+          <StewardText style={s.doneLabel}>Done</StewardText>
+        </TouchableOpacity>
+      </View>
+
+      {/* Category pills */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: SPACING.sm }}>
+        <View style={{ flexDirection: 'row', gap: SPACING.xs }}>
+          {REGULAR_EXPENSE_CATEGORIES.map((cat) => (
+            <TouchableOpacity
+              key={cat.value}
+              style={[s.typePill, item.category === cat.value && s.typePillActive]}
+              onPress={() => onChange({ ...item, category: cat.value })}
+            >
+              <StewardText style={[s.typePillLabel, item.category === cat.value && s.typePillLabelActive]}>
+                {cat.label}
+              </StewardText>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+
+      {/* Monthly estimate + remove */}
+      <View style={s.listRow}>
+        <StewardText style={s.listFieldLabel}>Monthly estimate $</StewardText>
+        <TextInput
+          style={[s.listInput, { flex: 1 }]}
+          value={item.monthlyEstimate ? String(item.monthlyEstimate) : ''}
+          onChangeText={(v) => onChange({ ...item, monthlyEstimate: Number(v.replace(/[^0-9]/g, '')) })}
+          keyboardType="number-pad"
+          placeholder="0"
+          placeholderTextColor={COLORS.placeholder}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
+        />
+        <TouchableOpacity style={s.removeBtn} onPress={onRemove}>
+          <StewardText style={s.removeBtnLabel}>✕</StewardText>
+        </TouchableOpacity>
+      </View>
+    </StewardCard>
+  );
+}
+
 // ─── Commitment row ──────────────────────────────────────────────────────────────
 const FREQ_OPTIONS = [
   { label: 'Monthly', value: 'monthly' },
@@ -421,12 +489,24 @@ const PAY_FREQ = [
 ];
 
 export default function ProfileScreen({ navigation }) {
+
+  const handleManualReprofile = () => {
+    Alert.alert(
+      'Review & re-profile',
+      'This will walk you through your annual review now. Your current profile and plan will be updated when you finish.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Start review', onPress: () => navigation.navigate('AnnualReview', { forceOpen: true }) },
+      ]
+    );
+  };
   const [original, setOriginal] = useState(null);
   const [name, setName] = useState('');
   const [priorities, setPriorities] = useState('');
   const [netIncome, setNetIncome] = useState('');
   const [payFrequency, setPayFrequency] = useState('biweekly');
   const [fixedCommitments, setFixedCommitments] = useState([]);
+  const [regularExpenses, setRegularExpenses] = useState([]);
   const [debts, setDebts] = useState([]);
   const [savings, setSavings] = useState('');
   const [investments, setInvestments] = useState([]);
@@ -442,6 +522,7 @@ export default function ProfileScreen({ navigation }) {
       setNetIncome(p.netIncome ? String(p.netIncome) : '');
       setPayFrequency(p.payFrequency || 'biweekly');
       setFixedCommitments(p.fixedCommitments || []);
+      setRegularExpenses(p.regularExpenses || []);
       setDebts(p.debts || []);
       setSavings(p.savings ? String(p.savings) : '');
       setInvestments(p.investments || []);
@@ -450,7 +531,7 @@ export default function ProfileScreen({ navigation }) {
   }, []);
 
   // Track changes
-  useEffect(() => { setDirty(true); }, [name, priorities, netIncome, payFrequency, fixedCommitments, debts, savings, investments, savingsGoals]);
+  useEffect(() => { setDirty(true); }, [name, priorities, netIncome, payFrequency, fixedCommitments, regularExpenses, debts, savings, investments, savingsGoals]);
   useEffect(() => { setDirty(false); }, [original]); // reset after load
 
   const handleSave = async () => {
@@ -466,6 +547,7 @@ export default function ProfileScreen({ navigation }) {
       netIncome: Number(netIncome) || 0,
       payFrequency,
       fixedCommitments: fixedCommitments.filter((c) => c.name.trim()),
+      regularExpenses: regularExpenses.filter((r) => r.name.trim()),
       debts: debts.filter((d) => d.name.trim()),
       savings: Number(savings) || 0,
       investments: investments.filter((inv) => inv.name.trim()),
@@ -478,6 +560,7 @@ export default function ProfileScreen({ navigation }) {
     const incomeChanged = original?.netIncome !== updatedProfile.netIncome;
     const commitmentsChanged =
       JSON.stringify(original?.fixedCommitments) !== JSON.stringify(updatedProfile.fixedCommitments) ||
+      JSON.stringify(original?.regularExpenses) !== JSON.stringify(updatedProfile.regularExpenses) ||
       JSON.stringify(original?.debts) !== JSON.stringify(updatedProfile.debts) ||
       JSON.stringify(original?.investments) !== JSON.stringify(updatedProfile.investments) ||
       JSON.stringify(original?.savingsGoals) !== JSON.stringify(updatedProfile.savingsGoals);
@@ -514,6 +597,16 @@ export default function ProfileScreen({ navigation }) {
 
   const removeCommitment = (i) => {
     setFixedCommitments(fixedCommitments.filter((_, idx) => idx !== i));
+  };
+
+  const updateRegularExpense = (i, val) => {
+    const updated = [...regularExpenses];
+    updated[i] = val;
+    setRegularExpenses(updated);
+  };
+
+  const removeRegularExpense = (i) => {
+    setRegularExpenses(regularExpenses.filter((_, idx) => idx !== i));
   };
 
   const updateDebt = (i, val) => {
@@ -617,6 +710,25 @@ export default function ProfileScreen({ navigation }) {
             />
           </Section>
 
+          {/* Regular expenses */}
+          <Section label="REGULAR EXPENSES">
+            <StewardText style={s.sectionHint}>
+              Expenses you know are coming but can't predict exactly — gas, groceries, household supplies.
+            </StewardText>
+            {regularExpenses.map((r, i) => (
+              <RegularExpenseRow
+                key={i}
+                item={r}
+                onChange={(val) => updateRegularExpense(i, val)}
+                onRemove={() => removeRegularExpense(i)}
+              />
+            ))}
+            <AddBtn
+              label="Add regular expense"
+              onPress={() => setRegularExpenses([...regularExpenses, { name: '', category: 'other', monthlyEstimate: 0 }])}
+            />
+          </Section>
+
           {/* Debts */}
           <Section label="DEBTS">
             <StewardText style={s.sectionHint}>
@@ -681,6 +793,28 @@ export default function ProfileScreen({ navigation }) {
               onPress={() => setSavingsGoals([...savingsGoals, { id: Date.now().toString(), name: '', target: 0, monthly: 0, saved: 0 }])}
             />
           </Section>
+
+
+          {/* Manual re-profile */}
+          <StewardCard variant="outlined" style={s.reprofileCard}>
+            <View style={s.reprofileRow}>
+              <View style={s.reprofileTextBlock}>
+                <StewardText variant="bodyMedium">Review & re-profile</StewardText>
+                <StewardText variant="caption" style={{ marginTop: 2 }}>
+                  Update your financial picture and rebuild your plan.
+                </StewardText>
+              </View>
+              <TouchableOpacity
+                style={s.reprofileButton}
+                onPress={handleManualReprofile}
+                activeOpacity={0.8}
+              >
+                <StewardText variant="label" style={s.reprofileButtonText}>
+                  START
+                </StewardText>
+              </TouchableOpacity>
+            </View>
+          </StewardCard>
 
           {/* Danger zone */}
           <View style={s.danger}>
@@ -976,4 +1110,10 @@ const s = StyleSheet.create({
     fontSize: SIZES.sm,
     color: COLORS.error,
   },
+
+  reprofileCard: { marginHorizontal: SPACING.md, marginBottom: SPACING.md },
+  reprofileRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SPACING.md },
+  reprofileTextBlock: { flex: 1, marginRight: SPACING.md },
+  reprofileButton: { backgroundColor: COLORS.forest, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.sm },
+  reprofileButtonText: { color: COLORS.parchment, letterSpacing: 0.8 },
 });
