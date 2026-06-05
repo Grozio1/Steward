@@ -1,3 +1,5 @@
+import { generateRequiredGoals, evaluateGoalHealth } from './goals';
+
 // AI stub layer — fallback implementations and plan arithmetic.
 // getDailyObservation and generateSynthesis have moved to claude.js (real API).
 // This file is still the source of truth for generatePlan (pure arithmetic, no AI needed)
@@ -257,6 +259,35 @@ export async function generatePlan(profile) {
     spent: 0,
     note: 'Some months have surprises. This is where they go.',
   });
+
+  // Surface required goal observations on plan layers.
+  // Goals already covered by a plan layer (stability, debt_accelerator) are skipped.
+  // Healthy goals are not surfaced — only active, degraded, or retriggered.
+  const coveredByLayer = new Set();
+  if (allocations.some((a) => a.layer === 'stability')) {
+    coveredByLayer.add('emergency_buffer');
+    coveredByLayer.add('stability_buffer');
+  }
+  if (allocations.some((a) => a.layer === 'debt_accelerator')) {
+    coveredByLayer.add('high_rate_debt');
+  }
+
+  const goalObservations = generateRequiredGoals(profile)
+    .filter((g) => !coveredByLayer.has(g.id))
+    .map((g) => evaluateGoalHealth(g, profile))
+    .filter((g) => g.goalState !== 'healthy');
+
+  if (goalObservations.length > 0) {
+    const stabilityLayer = allocations.find((a) => a.layer === 'stability');
+    const adhocLayer     = allocations.find((a) => a.layer === 'adhoc');
+
+    for (const goal of goalObservations) {
+      const target = (goal.layer === 'stability' && stabilityLayer) ? stabilityLayer : adhocLayer;
+      if (target) {
+        target.note = target.note ? `${target.note}\n${goal.note}` : goal.note;
+      }
+    }
+  }
 
   return {
     income: netInc,
