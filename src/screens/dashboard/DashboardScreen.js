@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
-import { getProfile, getPlan, getSpends, addSpend, currentMonth, formatCurrency, getTransfers, addTransfer, deleteTransfer, netTransferred, savePlan, updateGoalBalance, updateInvestmentBalance } from '../../data/store';
+import { getProfile, getPlan, getSpends, addSpend, currentMonth, formatCurrency, getTransfers, addTransfer, deleteTransfer, netTransferred, savePlan, updateGoalBalance, updateInvestmentBalance, getActiveCrises } from '../../data/store';
 import { getDailyObservation, generatePlan } from '../../ai/claude';
 import { detectAnomalies, getUnacknowledgedAnomalies, acknowledgeAnomaly } from '../../ai/anomalyDetection';
 import StewardText from '../../components/StewardText';
@@ -715,6 +715,7 @@ export default function DashboardScreen({ navigation }) {
   const [detailAllocation, setDetailAllocation] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [anomalies, setAnomalies] = useState([]);
+  const [activeCrises, setActiveCrises] = useState([]);
   const month = currentMonth();
 
   const load = useCallback(async () => {
@@ -722,14 +723,16 @@ export default function DashboardScreen({ navigation }) {
     const debtActualsData = debtActualsRaw ? JSON.parse(debtActualsRaw) : {};
     setDebtActuals(debtActualsData);
 
-    const [p, sp, tr] = await Promise.all([
+    const [p, sp, tr, crises] = await Promise.all([
       getProfile(),
       getSpends(month),
       getTransfers(month),
+      getActiveCrises(),
     ]);
     setProfile(p);
     setSpends(sp);
     setTransfers(tr);
+    setActiveCrises(crises);
 
     // Auto-regenerate plan if profile is newer than plan or plan is missing
     let pl = await getPlan(month);
@@ -950,6 +953,36 @@ export default function DashboardScreen({ navigation }) {
             </View>
           </StewardCard>
         ) : null}
+
+        {/* Active crisis awareness */}
+        {activeCrises.map((crisis) => {
+          const daysIn = Math.floor((Date.now() - new Date(crisis.startDate)) / 86400000);
+          const isActive = crisis.status === 'active';
+          return (
+            <TouchableOpacity
+              key={crisis.id}
+              onPress={() => navigation.navigate('Navigate')}
+              activeOpacity={0.8}
+            >
+              <StewardCard variant="parchment" style={[styles.crisisCard, { borderLeftColor: isActive ? COLORS.ember : COLORS.sage }]}>
+                <View style={styles.crisisRow}>
+                  <View style={{ flex: 1 }}>
+                    <StewardText style={styles.crisisLabel}>{crisis.eventLabel}</StewardText>
+                    <StewardText style={styles.crisisSubline}>
+                      {daysIn === 0 ? 'Started today' : `${daysIn} day${daysIn !== 1 ? 's' : ''} in`}
+                    </StewardText>
+                  </View>
+                  <View style={[styles.crisisBadge, { backgroundColor: isActive ? COLORS.emberMuted : COLORS.forestMuted }]}>
+                    <StewardText style={[styles.crisisBadgeLabel, { color: isActive ? COLORS.ember : COLORS.forest }]}>
+                      {isActive ? 'ACTIVE' : 'MONITORING'}
+                    </StewardText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={COLORS.placeholder} style={{ marginLeft: SPACING.xs }} />
+                </View>
+              </StewardCard>
+            </TouchableOpacity>
+          );
+        })}
 
         {/* Your story — Pro tier entry point */}
         {profile?.tier === 'pro' && (
@@ -1215,6 +1248,37 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans.medium,
     fontSize: 9,
     color: COLORS.ember,
+    letterSpacing: 0.5,
+  },
+  crisisCard: {
+    borderLeftWidth: 3,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+  },
+  crisisRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  crisisLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.base,
+    color: COLORS.hearth,
+  },
+  crisisSubline: {
+    fontFamily: FONTS.sans.light,
+    fontSize: SIZES.xs,
+    color: COLORS.placeholder,
+    marginTop: 2,
+  },
+  crisisBadge: {
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.xs + 2,
+    paddingVertical: 2,
+    marginRight: SPACING.xs,
+  },
+  crisisBadgeLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: 9,
     letterSpacing: 0.5,
   },
   insolventCard: {
