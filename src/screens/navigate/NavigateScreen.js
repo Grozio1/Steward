@@ -34,8 +34,8 @@ const EVENTS = [
 function generateResponse({ eventId, context, profile, plan }) {
   const name = profile?.name || '';
   const savings = Number(profile?.savings) || 0;
-  const income = toMonthly(profile?.netIncome, profile?.payFrequency);
-  const fixedTotal = (profile?.fixedCommitments || []).reduce((s, c) => s + Number(c.amount || 0), 0);
+  const income = plan?.income || toMonthly(profile?.netIncome, profile?.payFrequency);
+  const fixedTotal = (profile?.fixedCommitments || []).reduce((s, c) => s + Number(c.monthlyAmount || c.amount || 0), 0);
   const debtMin = (profile?.debts || []).reduce((s, d) => s + Number(d.minimum || 0), 0);
   const monthlyObligations = fixedTotal + debtMin;
   const runway = monthlyObligations > 0 ? Math.floor(savings / monthlyObligations) : null;
