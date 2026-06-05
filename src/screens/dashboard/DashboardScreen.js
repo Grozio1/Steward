@@ -978,7 +978,7 @@ export default function DashboardScreen({ navigation }) {
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
-                <StewardText style={styles.summaryValue}>{formatCurrency(totalAllocated - totalSpent)}</StewardText>
+                <StewardText style={styles.summaryValue}>{formatCurrency(Math.max(0, plan.income - totalSpent))}</StewardText>
                 <StewardText style={styles.summaryItemLabel}>Left</StewardText>
               </View>
             </View>
