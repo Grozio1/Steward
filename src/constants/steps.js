@@ -76,7 +76,7 @@ export const STEPS = [
     choices: [
       { label: 'Weekly', value: 'weekly' },
       { label: 'Every two weeks', value: 'biweekly' },
-      { label: 'Twice a month', value: 'semimonthly' },
+      { label: 'Twice a month', value: 'semi-monthly' },
       { label: 'Once a month', value: 'monthly' },
     ],
   },

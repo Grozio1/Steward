@@ -273,5 +273,6 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.border,
     padding: SPACING.md,
     paddingBottom: SPACING.lg,
+    maxHeight: '58%',
   },
 });

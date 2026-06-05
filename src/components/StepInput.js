@@ -165,32 +165,29 @@ function ListStep({ step, onSubmit }) {
   const skip = () => onSubmit([]);
 
   return (
-    <View style={styles.wrapper}>
-      {/* Existing items — scrollable so they never bury the Add row */}
-      {items.length > 0 && (
-        <ScrollView
-          style={styles.itemScroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {items.map((item, i) => (
-            <View key={i} style={styles.listItem}>
-              <View style={{ flex: 1 }}>
-                <StewardText style={styles.listItemName}>{item.name}</StewardText>
-                {item.frequency !== 'monthly' && (
-                  <StewardText style={styles.listItemFreq}>
-                    {freqLabel(item.frequency)} · ${item.monthlyAmount}/mo
-                  </StewardText>
-                )}
-              </View>
-              <StewardText style={styles.listItemAmount}>${item.amount.toLocaleString()}</StewardText>
-              <TouchableOpacity onPress={() => remove(i)} style={styles.removeBtn}>
-                <StewardText style={styles.removeLabel}>×</StewardText>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </ScrollView>
-      )}
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.listContent}
+    >
+      {/* Existing items */}
+      {items.map((item, i) => (
+        <View key={i} style={styles.listItem}>
+          <View style={{ flex: 1 }}>
+            <StewardText style={styles.listItemName}>{item.name}</StewardText>
+            {item.frequency !== 'monthly' && (
+              <StewardText style={styles.listItemFreq}>
+                {freqLabel(item.frequency)} · ${item.monthlyAmount}/mo
+              </StewardText>
+            )}
+          </View>
+          <StewardText style={styles.listItemAmount}>${item.amount.toLocaleString()}</StewardText>
+          <TouchableOpacity onPress={() => remove(i)} style={styles.removeBtn}>
+            <StewardText style={styles.removeLabel}>×</StewardText>
+          </TouchableOpacity>
+        </View>
+      ))}
 
       {/* Add row */}
       <View style={styles.addRow}>
@@ -276,7 +273,7 @@ function ListStep({ step, onSubmit }) {
           <SubmitButton label={step.submitLabel || 'Done'} onPress={done} />
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -308,25 +305,22 @@ function DebtListStep({ step, onSubmit }) {
   const remove = (i) => setItems((prev) => prev.filter((_, idx) => idx !== i));
 
   return (
-    <View style={styles.wrapper}>
-      {/* Existing debts — scrollable so they never bury the add form */}
-      {items.length > 0 && (
-        <ScrollView
-          style={styles.itemScroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {items.map((item, i) => (
-            <View key={i} style={styles.listItem}>
-              <StewardText style={styles.listItemName}>{item.name}</StewardText>
-              <StewardText style={styles.listItemAmount}>${item.balance.toLocaleString()}</StewardText>
-              <TouchableOpacity onPress={() => remove(i)} style={styles.removeBtn}>
-                <StewardText style={styles.removeLabel}>×</StewardText>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </ScrollView>
-      )}
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.listContent}
+    >
+      {/* Existing debts */}
+      {items.map((item, i) => (
+        <View key={i} style={styles.listItem}>
+          <StewardText style={styles.listItemName}>{item.name}</StewardText>
+          <StewardText style={styles.listItemAmount}>${item.balance.toLocaleString()}</StewardText>
+          <TouchableOpacity onPress={() => remove(i)} style={styles.removeBtn}>
+            <StewardText style={styles.removeLabel}>×</StewardText>
+          </TouchableOpacity>
+        </View>
+      ))}
 
       {/* Add row — Name */}
       <TextInput
@@ -403,7 +397,7 @@ function DebtListStep({ step, onSubmit }) {
           <SubmitButton label={step.submitLabel || 'Done'} onPress={() => onSubmit(items)} />
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -487,8 +481,8 @@ const styles = StyleSheet.create({
   choiceLabelActive: {
     color: COLORS.white,
   },
-  itemScroll: {
-    maxHeight: 180,
+  listContent: {
+    gap: SPACING.sm,
   },
   listItem: {
     flexDirection: 'row',
@@ -497,7 +491,6 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    marginBottom: SPACING.xs,
   },
   listItemName: {
     fontFamily: FONTS.sans.regular,

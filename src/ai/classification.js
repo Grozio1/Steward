@@ -21,7 +21,8 @@ function toMonthly(netIncome, payFrequency) {
   switch (payFrequency) {
     case 'weekly':       return Math.round(n * 52 / 12);
     case 'biweekly':     return Math.round(n * 26 / 12);
-    case 'semi-monthly': return Math.round(n * 2);
+    case 'semi-monthly':
+    case 'semimonthly':  return Math.round(n * 2);
     default:             return n;
   }
 }
