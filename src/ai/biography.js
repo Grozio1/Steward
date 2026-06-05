@@ -9,6 +9,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLifeEvents } from '../data/store';
+import { toMonthly } from './stub';
 
 // ─── Public entry point ───────────────────────────────────────────────────────
 
@@ -95,7 +96,7 @@ async function loadCurrentYear(profile) {
     .filter(Boolean);
   const avgIncome = planIncomes.length > 0
     ? planIncomes.reduce((s, v) => s + v, 0) / planIncomes.length
-    : profile.netIncome;
+    : toMonthly(profile.netIncome, profile.payFrequency);
 
   // Debt totals from profile (current state)
   const currentDebt = (profile.debts || []).reduce((s, d) => s + d.balance, 0);
@@ -213,7 +214,7 @@ function buildHistoricalChapter(year, snapshot, startYear, profile, navigateEven
     label: yearLabel(year, startYear),
     current: false,
     income: snapshot.profileSnapshot?.netIncome
-      ? Math.round(snapshot.profileSnapshot.netIncome * 26 / 12)
+      ? toMonthly(snapshot.profileSnapshot.netIncome, snapshot.profileSnapshot.payFrequency)
       : null,
     debtPaid: totalDebtPaid,
     savingsBuilt,
