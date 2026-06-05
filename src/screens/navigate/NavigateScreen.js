@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
 import { getProfile, getPlan, formatCurrency, saveLifeEvent } from '../../data/store';
+import { toMonthly } from '../../ai/stub';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 
@@ -33,7 +34,7 @@ const EVENTS = [
 function generateResponse({ eventId, context, profile, plan }) {
   const name = profile?.name || '';
   const savings = Number(profile?.savings) || 0;
-  const income = Number(profile?.netIncome) || 0;
+  const income = toMonthly(profile?.netIncome, profile?.payFrequency);
   const fixedTotal = (profile?.fixedCommitments || []).reduce((s, c) => s + Number(c.amount || 0), 0);
   const debtMin = (profile?.debts || []).reduce((s, d) => s + Number(d.minimum || 0), 0);
   const monthlyObligations = fixedTotal + debtMin;
@@ -90,7 +91,7 @@ function generateResponse({ eventId, context, profile, plan }) {
       { week: 'Month 4+', label: 'New normal', detail: 'You\'ll know your new baseline by now. Lock it in.' },
     );
   } else if (eventId === 'financial_stress') {
-    const gap = plan?.shortfall || monthlyObligations;
+    const gap = plan?.shortfall ?? Math.max(0, monthlyObligations - income);
     recoverySteps.push(
       { week: 'Now', label: 'Map the gap', detail: `Committed expenses exceed income by ${formatCurrency(gap)}. Know that number exactly — it's what needs to close.` },
       { week: 'Week 1–2', label: 'Find the flex', detail: 'Every fixed line item gets reviewed. Some are truly fixed. Some aren\'t.' },

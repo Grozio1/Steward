@@ -12,7 +12,7 @@ function fmt(n) {
 }
 
 // Converts per-paycheck netIncome to a true monthly figure.
-function toMonthly(netIncome, payFrequency) {
+export function toMonthly(netIncome, payFrequency) {
   const n = Number(netIncome) || 0;
   switch (payFrequency) {
     case 'weekly':       return Math.round(n * 52 / 12);
