@@ -11,8 +11,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
-import { getProfile, getPlan, formatCurrency, saveLifeEvent, saveCrisis, CRISIS_MODELS } from '../../data/store';
+import { getProfile, getPlan, formatCurrency, saveLifeEvent, saveCrisis, resolveCrisis, getActiveCrises, CRISIS_MODELS } from '../../data/store';
 import { toMonthly } from '../../ai/stub';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
@@ -119,6 +120,82 @@ function generateResponse({ eventId, context, profile, plan }) {
   };
 }
 
+// ─── Crisis check-in card ─────────────────────────────────────────────────────────
+function CrisisCheckInCard({ crisis, onCheckIn }) {
+  const [expanded, setExpanded] = useState(false);
+  const [note, setNote] = useState('');
+
+  const daysIn = Math.floor((Date.now() - new Date(crisis.startDate)) / 86400000);
+  const lastCheckedInDays = crisis.lastCheckedIn
+    ? Math.floor((Date.now() - new Date(crisis.lastCheckedIn)) / 86400000)
+    : null;
+  const isActive = crisis.status === 'active';
+
+  const handle = async (newStatus) => {
+    await onCheckIn(crisis, newStatus, note.trim() || null);
+    setNote('');
+    setExpanded(false);
+  };
+
+  return (
+    <StewardCard variant="parchment" style={ci.card}>
+      <TouchableOpacity onPress={() => setExpanded((v) => !v)} activeOpacity={0.75}>
+        <View style={ci.header}>
+          <View style={{ flex: 1 }}>
+            <StewardText style={ci.eventLabel}>{crisis.eventLabel}</StewardText>
+            <StewardText style={ci.subline}>
+              {daysIn === 0 ? 'Started today' : `${daysIn} day${daysIn !== 1 ? 's' : ''} in`}
+              {lastCheckedInDays !== null
+                ? ` · checked in ${lastCheckedInDays === 0 ? 'today' : `${lastCheckedInDays}d ago`}`
+                : ''}
+            </StewardText>
+          </View>
+          <View style={[ci.badge, { backgroundColor: isActive ? COLORS.emberMuted : COLORS.forestMuted }]}>
+            <StewardText style={[ci.badgeLabel, { color: isActive ? COLORS.ember : COLORS.forest }]}>
+              {isActive ? 'ACTIVE' : 'MONITORING'}
+            </StewardText>
+          </View>
+          <Ionicons
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={14}
+            color={COLORS.placeholder}
+            style={{ marginLeft: SPACING.xs }}
+          />
+        </View>
+      </TouchableOpacity>
+
+      {expanded && (
+        <View style={ci.body}>
+          <StewardText style={ci.prompt}>How are things going?</StewardText>
+          <TextInput
+            style={ci.noteInput}
+            value={note}
+            onChangeText={setNote}
+            placeholder="Add a note (optional)"
+            placeholderTextColor={COLORS.placeholder}
+            multiline
+            blurOnSubmit
+            returnKeyType="done"
+          />
+          <View style={ci.actions}>
+            <TouchableOpacity style={ci.btnOutline} onPress={() => handle(crisis.status)}>
+              <StewardText style={ci.btnOutlineLabel}>Still in it</StewardText>
+            </TouchableOpacity>
+            {isActive && (
+              <TouchableOpacity style={ci.btnMuted} onPress={() => handle('monitoring')}>
+                <StewardText style={ci.btnMutedLabel}>Getting better</StewardText>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={ci.btnResolved} onPress={() => handle('resolved')}>
+              <StewardText style={ci.btnResolvedLabel}>Resolved</StewardText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+    </StewardCard>
+  );
+}
+
 // ─── Recovery timeline ────────────────────────────────────────────────────────────
 function TimelineStep({ step, index, total }) {
   const isLast = index === total - 1;
@@ -146,6 +223,7 @@ export default function NavigateScreen({ route }) {
   const [context, setContext] = useState('');
   const [thinking, setThinking] = useState(false);
   const [response, setResponse] = useState(null);
+  const [activeCrises, setActiveCrises] = useState([]);
 
   useEffect(() => {
     const prefill = route?.params?.prefillEvent;
@@ -161,10 +239,11 @@ export default function NavigateScreen({ route }) {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      Promise.all([getProfile(), getPlan()]).then(([p, pl]) => {
+      Promise.all([getProfile(), getPlan(), getActiveCrises()]).then(([p, pl, crises]) => {
         if (!active) return;
         setProfile(p);
         setPlan(pl);
+        setActiveCrises(crises);
       });
       return () => { active = false; };
     }, [])
@@ -200,6 +279,23 @@ export default function NavigateScreen({ route }) {
     setResponse(null);
   };
 
+  const handleCheckIn = async (crisis, newStatus, note) => {
+    if (newStatus === 'resolved') {
+      await resolveCrisis(crisis.id, note);
+    } else {
+      await saveCrisis({
+        ...crisis,
+        status: newStatus,
+        lastCheckedIn: new Date().toISOString(),
+        notes: note
+          ? [...(crisis.notes || []), { date: new Date().toISOString(), text: note }]
+          : crisis.notes || [],
+      });
+    }
+    const fresh = await getActiveCrises();
+    setActiveCrises(fresh);
+  };
+
   return (
     <SafeAreaView style={s.root} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -221,6 +317,20 @@ export default function NavigateScreen({ route }) {
         >
           {!response ? (
             <>
+              {/* Active crisis check-ins */}
+              {activeCrises.length > 0 && (
+                <View style={s.crisisSection}>
+                  <StewardText style={s.sectionLabel}>ACTIVE SITUATIONS</StewardText>
+                  {activeCrises.map((crisis) => (
+                    <CrisisCheckInCard
+                      key={crisis.id}
+                      crisis={crisis}
+                      onCheckIn={handleCheckIn}
+                    />
+                  ))}
+                </View>
+              )}
+
               <StewardText style={s.prompt}>
                 Something changed. Tell me what happened.
               </StewardText>
@@ -533,6 +643,105 @@ const s = StyleSheet.create({
     fontFamily: FONTS.sans.regular,
     fontSize: SIZES.sm,
     color: COLORS.placeholder,
+  },
+  crisisSection: {
+    marginBottom: SPACING.lg,
+    gap: SPACING.sm,
+  },
+});
+
+// ─── Crisis check-in styles ───────────────────────────────────────────────────────
+const ci = StyleSheet.create({
+  card: { marginBottom: 0 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eventLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.base,
+    color: COLORS.hearth,
+  },
+  subline: {
+    fontFamily: FONTS.sans.light,
+    fontSize: SIZES.xs,
+    color: COLORS.placeholder,
+    marginTop: 2,
+  },
+  badge: {
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.xs + 2,
+    paddingVertical: 2,
+    marginRight: SPACING.xs,
+  },
+  badgeLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: 9,
+    letterSpacing: 0.5,
+  },
+  body: {
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    gap: SPACING.sm,
+  },
+  prompt: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.sm,
+    color: COLORS.hearth,
+  },
+  noteInput: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.base,
+    color: COLORS.hearth,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    padding: SPACING.sm,
+    minHeight: 56,
+    textAlignVertical: 'top',
+  },
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  btnOutline: {
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+  },
+  btnOutlineLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.sm,
+    color: COLORS.hearth,
+  },
+  btnMuted: {
+    borderWidth: 1.5,
+    borderColor: COLORS.forest,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+  },
+  btnMutedLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.sm,
+    color: COLORS.forest,
+  },
+  btnResolved: {
+    backgroundColor: COLORS.forest,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+  },
+  btnResolvedLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.sm,
+    color: COLORS.white,
   },
 });
 
