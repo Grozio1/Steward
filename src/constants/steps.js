@@ -62,7 +62,7 @@ export const STEPS = [
   {
     id: 'income',
     getMessage: (a) =>
-      `Good to meet you, ${a.name}.\n\nWhat do you take home each month? If it varies, give me a typical month.`,
+      `Good to meet you, ${a.name}.\n\nWhat's your take-home pay per paycheck — after taxes and deductions?`,
     inputType: 'currency',
     key: 'netIncome',
     placeholder: '0',
