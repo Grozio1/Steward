@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
-import { getProfile, getPlan, formatCurrency, saveLifeEvent } from '../../data/store';
+import { getProfile, getPlan, formatCurrency, saveLifeEvent, saveCrisis, CRISIS_MODELS } from '../../data/store';
 import { toMonthly } from '../../ai/stub';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
@@ -178,6 +178,19 @@ export default function NavigateScreen({ route }) {
     const result = generateResponse({ eventId: selectedEvent.id, context, profile, plan });
     setResponse(result);
     saveLifeEvent({ event: selectedEvent.label, notes: context });
+    const model = CRISIS_MODELS[selectedEvent.id] ?? CRISIS_MODELS.other;
+    saveCrisis({
+      id: 'crisis_' + Date.now(),
+      eventType: selectedEvent.id,
+      eventLabel: selectedEvent.label,
+      startDate: new Date().toISOString(),
+      status: 'active',
+      resolvedDate: null,
+      lastCheckedIn: null,
+      notes: [],
+      resolutionModel: model.resolutionModel,
+      checkInDays: model.checkInDays,
+    });
     setThinking(false);
   };
 

@@ -188,6 +188,88 @@ export async function getLifeEvents() {
   }
 }
 
+// ─── Crisis persistence ────────────────────────────────────────────────────────
+// Shape: { id, eventType, eventLabel, startDate, status, resolvedDate,
+//          lastCheckedIn, notes, resolutionModel, checkInDays }
+// status: 'active' | 'monitoring' | 'resolved'
+
+export const CRISIS_MODELS = {
+  job_loss:         { resolutionModel: 'income_restored', checkInDays: 7 },
+  career_change:    { resolutionModel: 'manual',          checkInDays: 14 },
+  divorce:          { resolutionModel: 'manual',          checkInDays: 14 },
+  medical:          { resolutionModel: 'manual',          checkInDays: 7 },
+  loss_spouse:      { resolutionModel: 'manual',          checkInDays: 30 },
+  financial_stress: { resolutionModel: 'plan_solvent',    checkInDays: 7 },
+  new_baby:         { resolutionModel: 'auto_90_days',    checkInDays: 30 },
+  other:            { resolutionModel: 'manual',          checkInDays: 14 },
+};
+
+export async function getActiveCrises() {
+  try {
+    const raw = await AsyncStorage.getItem('steward_active_crises');
+    const all = raw ? JSON.parse(raw) : [];
+    return all.filter((c) => c.status !== 'resolved');
+  } catch {
+    return [];
+  }
+}
+
+export async function saveCrisis(crisis) {
+  try {
+    const raw = await AsyncStorage.getItem('steward_active_crises');
+    const all = raw ? JSON.parse(raw) : [];
+    const idx = all.findIndex((c) => c.id === crisis.id);
+    const updated = idx >= 0
+      ? all.map((c) => c.id === crisis.id ? crisis : c)
+      : [...all, crisis];
+    await AsyncStorage.setItem('steward_active_crises', JSON.stringify(updated));
+  } catch (err) {
+    console.error('[store] saveCrisis failed:', err);
+  }
+}
+
+export async function resolveCrisis(id, note) {
+  try {
+    const raw = await AsyncStorage.getItem('steward_active_crises');
+    const all = raw ? JSON.parse(raw) : [];
+    const updated = all.map((c) => {
+      if (c.id !== id) return c;
+      const notes = note
+        ? [...(c.notes || []), { date: new Date().toISOString(), text: note }]
+        : (c.notes || []);
+      return { ...c, status: 'resolved', resolvedDate: new Date().toISOString(), notes };
+    });
+    await AsyncStorage.setItem('steward_active_crises', JSON.stringify(updated));
+  } catch (err) {
+    console.error('[store] resolveCrisis failed:', err);
+  }
+}
+
+export async function addCrisisNote(id, note) {
+  try {
+    const raw = await AsyncStorage.getItem('steward_active_crises');
+    const all = raw ? JSON.parse(raw) : [];
+    const updated = all.map((c) =>
+      c.id === id
+        ? { ...c, notes: [...(c.notes || []), { date: new Date().toISOString(), text: note }] }
+        : c
+    );
+    await AsyncStorage.setItem('steward_active_crises', JSON.stringify(updated));
+  } catch (err) {
+    console.error('[store] addCrisisNote failed:', err);
+  }
+}
+
+export async function getCrisisById(id) {
+  try {
+    const raw = await AsyncStorage.getItem('steward_active_crises');
+    const all = raw ? JSON.parse(raw) : [];
+    return all.find((c) => c.id === id) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Dev utility ───────────────────────────────────────────────────────────────
 export async function clearAll() {
   await AsyncStorage.clear();
