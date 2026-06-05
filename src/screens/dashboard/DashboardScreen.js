@@ -722,15 +722,13 @@ export default function DashboardScreen({ navigation }) {
     const debtActualsData = debtActualsRaw ? JSON.parse(debtActualsRaw) : {};
     setDebtActuals(debtActualsData);
 
-    const [p, sp, obs, tr] = await Promise.all([
+    const [p, sp, tr] = await Promise.all([
       getProfile(),
       getSpends(month),
-      getDailyObservation(null),
       getTransfers(month),
     ]);
     setProfile(p);
     setSpends(sp);
-    setObservation(obs);
     setTransfers(tr);
 
     // Auto-regenerate plan if profile is newer than plan or plan is missing
@@ -784,6 +782,12 @@ export default function DashboardScreen({ navigation }) {
         return { ...alloc, spent: categorySpends };
       });
       setPlan({ ...pl, allocations: updatedAllocations });
+
+      const planTotalSpent = updatedAllocations.reduce((s, a) => s + (a.spent || 0), 0);
+      const overAmount = Math.max(0, planTotalSpent - (pl.income || 0));
+      getDailyObservation(p, { overAmount }).then(setObservation);
+    } else {
+      getDailyObservation(p, {}).then(setObservation);
     }
 
     if (p) {
@@ -888,6 +892,8 @@ export default function DashboardScreen({ navigation }) {
   const monthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   const totalAllocated = plan?.allocations.reduce((s, a) => s + a.amount, 0) || 0;
   const totalSpent = plan?.allocations.reduce((s, a) => s + (a.spent || 0), 0) || 0;
+  const left = plan ? plan.income - totalSpent : 0;
+  const isOver = left < 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -978,8 +984,12 @@ export default function DashboardScreen({ navigation }) {
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
-                <StewardText style={styles.summaryValue}>{formatCurrency(Math.max(0, plan.income - totalSpent))}</StewardText>
-                <StewardText style={styles.summaryItemLabel}>Left</StewardText>
+                <StewardText style={[styles.summaryValue, isOver && { color: COLORS.ember }]}>
+                  {formatCurrency(Math.abs(left))}
+                </StewardText>
+                <StewardText style={[styles.summaryItemLabel, isOver && { color: COLORS.ember }]}>
+                  {isOver ? 'Over' : 'Left'}
+                </StewardText>
               </View>
             </View>
           </StewardCard>

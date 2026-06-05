@@ -40,17 +40,18 @@ async function call(model, system, userContent, maxTokens) {
 
 // ─── Daily observation ─────────────────────────────────────────────────────────
 // Haiku — one sentence, max 60 tokens. Profile may be null (called before load).
-export async function getDailyObservation(profile) {
+export async function getDailyObservation(profile, context = {}) {
   try {
     const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     const parts = [`Month: ${month}`];
     if (profile?.name) parts.push(`Name: ${profile.name}`);
     if (profile?.netIncome) parts.push(`Take-home: $${Number(profile.netIncome).toLocaleString()}/mo`);
     if (profile?.savings) parts.push(`Savings: $${Number(profile.savings).toLocaleString()}`);
+    if (context.overAmount > 0) parts.push(`Over budget by $${Number(context.overAmount).toLocaleString()} this month`);
 
     const text = await call(
       'claude-3-haiku-20240307',
-      'You are Steward, a financial life companion with a parent/grandparent voice — warm, direct, plain. Write one sentence only. No greeting, no punctuation beyond a period. Observe something genuine about where the user stands this month based on their profile. Never generic filler.',
+      'You are Steward, a financial life companion with a parent/grandparent voice — warm, direct, plain. Write one sentence only. No greeting, no punctuation beyond a period. Observe something genuine about where the user stands this month based on their profile. If they spent more than their income, acknowledge the overage calmly and directly — no alarm, no shame. Never generic filler.',
       parts.join('. '),
       60,
     );
