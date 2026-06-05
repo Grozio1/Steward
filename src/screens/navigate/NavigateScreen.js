@@ -228,12 +228,16 @@ export default function NavigateScreen({ route }) {
   useEffect(() => {
     const prefill = route?.params?.prefillEvent;
     if (!prefill) return;
-    const match = EVENTS.find((e) => e.id === prefill);
-    if (match) {
-      setSelectedEvent(match);
-      setContext('My fixed expenses exceed my income. I need a recovery strategy.');
-      setResponse(null);
-    }
+    getActiveCrises().then((crises) => {
+      const existing = crises.find((c) => c.eventType === prefill);
+      if (existing) return; // active crisis already tracked — ACTIVE SITUATIONS will surface it
+      const match = EVENTS.find((e) => e.id === prefill);
+      if (match) {
+        setSelectedEvent(match);
+        setContext('My fixed expenses exceed my income. I need a recovery strategy.');
+        setResponse(null);
+      }
+    });
   }, [route?.params?.prefillEvent]);
 
   useFocusEffect(
@@ -244,6 +248,7 @@ export default function NavigateScreen({ route }) {
         setProfile(p);
         setPlan(pl);
         setActiveCrises(crises);
+        console.log('[NavigateScreen] activeCrises:', crises.length, crises.map(c => c.eventType));
       });
       return () => { active = false; };
     }, [])
