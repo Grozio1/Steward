@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -18,13 +18,14 @@ import StewardCard from '../../components/StewardCard';
 
 // ─── Life events ─────────────────────────────────────────────────────────────────
 const EVENTS = [
-  { id: 'job_loss',      label: 'Job loss' },
-  { id: 'divorce',       label: 'Divorce or separation' },
-  { id: 'new_baby',      label: 'New baby' },
-  { id: 'career_change', label: 'Career change' },
-  { id: 'loss_spouse',   label: 'Loss of a spouse' },
-  { id: 'medical',       label: 'Medical emergency' },
-  { id: 'other',         label: 'Something else' },
+  { id: 'job_loss',          label: 'Job loss' },
+  { id: 'divorce',           label: 'Divorce or separation' },
+  { id: 'new_baby',          label: 'New baby' },
+  { id: 'career_change',     label: 'Career change' },
+  { id: 'loss_spouse',       label: 'Loss of a spouse' },
+  { id: 'medical',           label: 'Medical emergency' },
+  { id: 'financial_stress',  label: 'Expenses exceed income' },
+  { id: 'other',             label: 'Something else' },
 ];
 
 // ─── Stub response generator ─────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ function generateResponse({ eventId, context, profile, plan }) {
     career_change: `Changing direction takes courage, and it usually means a transition period of uncertainty. That's manageable. Let's look at what your situation can actually absorb.`,
     loss_spouse: `${name ? name + ', I' : 'I'}'m sorry. There's no right way to navigate this kind of loss. When you're ready, I'm here to help you make sure the financial side of things doesn't add to what you're already carrying.`,
     medical: `A medical emergency puts everything else on hold. Let's make sure you know exactly where you stand and what can wait — so you can focus on what matters most right now.`,
+    financial_stress: `${name ? name + ', this' : 'This'} is a structural problem, not a willpower problem. When committed expenses outrun income, habits won't fix it — the structure has to change. Let's figure out where the room is.`,
     other: `${name ? name + ', something' : 'Something'} changed. That's what this is here for. Let's look at what you have and figure out what the right next step is.`,
   };
 
@@ -64,6 +66,7 @@ function generateResponse({ eventId, context, profile, plan }) {
     career_change: 'Give yourself a written transition timeline — start date, expected first paycheck, gap in weeks. That number drives everything else.',
     loss_spouse: 'Contact your bank and any joint account holders to protect access. Only when you\'re ready.',
     medical: 'Request an itemized bill from the hospital before paying anything. Errors are common and bills are often negotiable.',
+    financial_stress: 'List every fixed commitment and its monthly amount. Decide which ones are truly non-negotiable and which ones have any give — even a little. That list is where the work starts.',
     other: 'Write down the one thing that feels most urgent right now. That\'s where we start.',
   };
 
@@ -85,6 +88,14 @@ function generateResponse({ eventId, context, profile, plan }) {
       { week: 'Month 1', label: 'Adjust the plan', detail: 'Rebuild your Deploy plan with new expenses accounted for.' },
       { week: 'Months 2–3', label: 'Find the flex', detail: 'Quality of life spending usually finds its own level. Watch it for 60 days.' },
       { week: 'Month 4+', label: 'New normal', detail: 'You\'ll know your new baseline by now. Lock it in.' },
+    );
+  } else if (eventId === 'financial_stress') {
+    const gap = plan?.shortfall || monthlyObligations;
+    recoverySteps.push(
+      { week: 'Now', label: 'Map the gap', detail: `Committed expenses exceed income by ${formatCurrency(gap)}. Know that number exactly — it's what needs to close.` },
+      { week: 'Week 1–2', label: 'Find the flex', detail: 'Every fixed line item gets reviewed. Some are truly fixed. Some aren\'t.' },
+      { week: 'Month 1', label: 'Restructure', detail: 'Negotiate, downsize, or eliminate at least one line item. One change changes the math.' },
+      { week: 'Month 2+', label: 'Rebuild', detail: 'Once obligations fit income, the plan can be built the way it\'s supposed to work.' },
     );
   } else {
     recoverySteps.push(
@@ -127,13 +138,24 @@ function TimelineStep({ step, index, total }) {
 }
 
 // ─── Main screen ──────────────────────────────────────────────────────────────────
-export default function NavigateScreen() {
+export default function NavigateScreen({ route }) {
   const [profile, setProfile] = useState(null);
   const [plan, setPlan] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [context, setContext] = useState('');
   const [thinking, setThinking] = useState(false);
   const [response, setResponse] = useState(null);
+
+  useEffect(() => {
+    const prefill = route?.params?.prefillEvent;
+    if (!prefill) return;
+    const match = EVENTS.find((e) => e.id === prefill);
+    if (match) {
+      setSelectedEvent(match);
+      setContext('My fixed expenses exceed my income. I need a recovery strategy.');
+      setResponse(null);
+    }
+  }, [route?.params?.prefillEvent]);
 
   useFocusEffect(
     useCallback(() => {

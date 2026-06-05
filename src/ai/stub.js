@@ -290,10 +290,13 @@ export async function generatePlan(profile) {
     }
   }
 
+  const structuralShortfall = fixedTotal + debtMinimums + totalRegular - netInc;
+
   return {
     income: netInc,
     allocations,
     generatedAt: new Date().toISOString(),
+    ...(structuralShortfall > 0 && { planState: 'insolvent', shortfall: structuralShortfall }),
   };
 }
 

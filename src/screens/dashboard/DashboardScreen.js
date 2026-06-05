@@ -995,6 +995,21 @@ export default function DashboardScreen({ navigation }) {
           </StewardCard>
         )}
 
+        {/* Structural insolvency alert */}
+        {plan?.planState === 'insolvent' && (
+          <StewardCard variant="parchment" style={styles.insolventCard}>
+            <StewardText style={styles.insolventText}>
+              Your committed expenses exceed your income by {formatCurrency(plan.shortfall)}. This isn't a spending problem — it's a structure problem. Navigate can help you build a recovery plan.
+            </StewardText>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Navigate', { prefillEvent: 'financial_stress' })}
+              style={styles.insolventLink}
+            >
+              <StewardText style={styles.insolventLinkLabel}>Go to Navigate →</StewardText>
+            </TouchableOpacity>
+          </StewardCard>
+        )}
+
         {/* Allocation bars — tappable */}
         {plan?.allocations?.length ? (
           <View style={styles.section}>
@@ -1201,6 +1216,28 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: COLORS.ember,
     letterSpacing: 0.5,
+  },
+  insolventCard: {
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.ember,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+  },
+  insolventText: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.base,
+    color: COLORS.hearth,
+    lineHeight: SIZES.base * 1.6,
+    marginBottom: SPACING.sm,
+  },
+  insolventLink: {
+    alignSelf: 'flex-start',
+    paddingTop: SPACING.xs,
+  },
+  insolventLinkLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.sm,
+    color: COLORS.ember,
   },
 });
 
