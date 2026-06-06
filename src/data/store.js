@@ -301,6 +301,32 @@ export async function saveLastDeployDate(date) {
   } catch {}
 }
 
+// ─── Debt actuals ──────────────────────────────────────────────────────────────
+export async function getDebtActuals(month) {
+  try {
+    const raw = await AsyncStorage.getItem('steward_debt_actuals_' + month);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+export async function saveDebtActuals(month, data) {
+  try {
+    await AsyncStorage.setItem('steward_debt_actuals_' + month, JSON.stringify(data));
+  } catch {}
+}
+
+// ─── Fixed overrides ───────────────────────────────────────────────────────────
+export async function getFixedOverrides(month) {
+  try {
+    const raw = await AsyncStorage.getItem('steward_fixed_overrides_' + month);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+export async function saveFixedOverrides(month, data) {
+  try {
+    await AsyncStorage.setItem('steward_fixed_overrides_' + month, JSON.stringify(data));
+  } catch {}
+}
+
 // ─── Dev utility ───────────────────────────────────────────────────────────────
 export async function clearAll() {
   await AsyncStorage.clear();
