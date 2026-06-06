@@ -61,6 +61,8 @@ const s = StyleSheet.create({
     color: COLORS.hearth,
     letterSpacing: 0.5,
     marginTop: SPACING.lg,
+    paddingTop: 8,
+    lineHeight: 56,
   },
 
   tagline: {
