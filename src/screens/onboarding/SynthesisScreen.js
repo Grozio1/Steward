@@ -9,16 +9,52 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
 import { generateSynthesis, generatePlan } from '../../ai/claude';
+import { toMonthly } from '../../ai/stub';
 import { classifyLifeStage } from '../../ai/classification';
-import { saveProfile, savePlan, currentMonth } from '../../data/store';
+import { saveProfile, savePlan, currentMonth, formatCurrency } from '../../data/store';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 import FlameIcon from '../../components/FlameIcon';
 
+// ─── Solvency calculator ───────────────────────────────────────────────────────
+// solvent_with_room: floor ≤ income AND remainder ≥ 10% of income
+// solvent_tight:     floor ≤ income AND remainder < 10% of income
+// insolvent:         floor > income
+function computeSolvency(profile) {
+  const income = toMonthly(profile.netIncome, profile.payFrequency);
+  const fixedTotal = (profile.fixedCommitments || []).reduce(
+    (s, c) => s + Number(c.monthlyAmount || c.amount || 0), 0
+  );
+  const debtMinimums = (profile.debts || []).reduce((s, d) => s + Number(d.minimum || 0), 0);
+  const totalRegular = (profile.regularExpenses || []).reduce(
+    (s, r) => s + Number(r.monthlyEstimate || 0), 0
+  );
+  const floor = fixedTotal + debtMinimums + totalRegular;
+  const remainder = income - floor;
+
+  let state;
+  if (floor > income) {
+    state = 'insolvent';
+  } else if (remainder < income * 0.10) {
+    state = 'solvent_tight';
+  } else {
+    state = 'solvent_with_room';
+  }
+
+  return {
+    state,
+    remainder: Math.max(0, remainder),
+    shortfall: Math.max(0, floor - income),
+  };
+}
+
+// ─── Screen ────────────────────────────────────────────────────────────────────
 export default function SynthesisScreen({ route, navigation }) {
   const { profile } = route.params;
   const [synthesis, setSynthesis] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const solvency = computeSolvency(profile);
 
   useEffect(() => {
     generateSynthesis(profile).then((s) => {
@@ -35,13 +71,25 @@ export default function SynthesisScreen({ route, navigation }) {
     const plan = await generatePlan(enrichedProfile);
     await savePlan(plan, currentMonth());
 
-    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+    if (solvency.state === 'insolvent') {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Main', params: { insolvencyDetected: true } }],
+      });
+    } else {
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+    }
   };
 
   const handleCorrect = () => {
-    // Go back to beginning of onboarding
     navigation.reset({ index: 0, routes: [{ name: 'Onboarding' }] });
   };
+
+  const btnLabel = {
+    solvent_with_room: 'Build my plan',
+    solvent_tight: 'See my plan',
+    insolvent: "Let's work on this",
+  }[solvency.state];
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -56,9 +104,49 @@ export default function SynthesisScreen({ route, navigation }) {
           <StewardText style={styles.wordmark}>Steward</StewardText>
         </View>
 
-        <StewardText style={styles.intro}>
-          Here's what I heard.
-        </StewardText>
+        {/* ── State-specific hero ── */}
+
+        {solvency.state === 'solvent_with_room' && (
+          <>
+            <StewardText style={[styles.heading, styles.headingGreen]}>
+              Your foundation is solid.
+            </StewardText>
+            <StewardText style={styles.subline}>
+              Here's what you have left to work with.
+            </StewardText>
+            <View style={styles.remainderRow}>
+              <StewardText style={[styles.remainderAmount, styles.remainderGreen]}>
+                {formatCurrency(solvency.remainder)}
+              </StewardText>
+              <StewardText style={styles.remainderPer}>/month</StewardText>
+            </View>
+          </>
+        )}
+
+        {solvency.state === 'solvent_tight' && (
+          <>
+            <StewardText style={styles.heading}>You're covered.</StewardText>
+            <StewardText style={styles.subline}>
+              There isn't much margin, but the essentials are met. Here's what that means.
+            </StewardText>
+            <View style={styles.remainderRow}>
+              <StewardText style={styles.remainderAmount}>
+                {formatCurrency(solvency.remainder)}
+              </StewardText>
+              <StewardText style={styles.remainderPer}>/month</StewardText>
+            </View>
+          </>
+        )}
+
+        {solvency.state === 'insolvent' && (
+          <View style={styles.insolventCard}>
+            <StewardText style={styles.insolventText}>
+              Before we look at the plan, there's something worth naming. Your essential expenses are running ahead of your income by {formatCurrency(solvency.shortfall)}.
+            </StewardText>
+          </View>
+        )}
+
+        {/* ── AI synthesis bullets — shown for all states ── */}
 
         {loading ? (
           <View style={styles.loadingWrap}>
@@ -67,7 +155,6 @@ export default function SynthesisScreen({ route, navigation }) {
           </View>
         ) : synthesis ? (
           <>
-            {/* Summary facts */}
             <StewardCard style={styles.summaryCard}>
               {synthesis.summary.map((line, i) => (
                 <View key={i} style={styles.summaryRow}>
@@ -77,21 +164,20 @@ export default function SynthesisScreen({ route, navigation }) {
               ))}
             </StewardCard>
 
-            {/* Key insight — the one thing Steward flags */}
             <StewardCard variant="forest" style={styles.insightCard}>
               <StewardText style={styles.insightLabel}>THE THING I NOTICED</StewardText>
-              <StewardText style={styles.insightText}>
-                {synthesis.keyInsight}
-              </StewardText>
+              <StewardText style={styles.insightText}>{synthesis.keyInsight}</StewardText>
             </StewardCard>
 
-            <StewardText style={styles.confirmQuestion}>
-              Does this look right?
-            </StewardText>
-
-            {/* Actions */}
-            <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} activeOpacity={0.8}>
-              <StewardText style={styles.confirmBtnLabel}>Yes — build my plan</StewardText>
+            <TouchableOpacity
+              style={[
+                styles.confirmBtn,
+                solvency.state === 'insolvent' && styles.confirmBtnEmber,
+              ]}
+              onPress={handleConfirm}
+              activeOpacity={0.8}
+            >
+              <StewardText style={styles.confirmBtnLabel}>{btnLabel}</StewardText>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.correctBtn} onPress={handleCorrect} activeOpacity={0.7}>
@@ -128,13 +214,60 @@ const styles = StyleSheet.create({
     fontSize: SIZES.lg,
     color: COLORS.forest,
   },
-  intro: {
+
+  // ─── State-specific hero ─────────────────────────────────────────────────────
+  heading: {
     fontFamily: FONTS.serif.bold,
     fontSize: SIZES.xxl,
     color: COLORS.hearth,
     lineHeight: SIZES.xxl * 1.2,
-    marginBottom: SPACING.sm,
   },
+  headingGreen: {
+    color: COLORS.forest,
+  },
+  subline: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.base,
+    color: COLORS.placeholder,
+    lineHeight: SIZES.base * 1.6,
+  },
+  remainderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: SPACING.xs,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  remainderAmount: {
+    fontFamily: FONTS.serif.bold,
+    fontSize: SIZES.xxxl,
+    color: COLORS.hearth,
+    lineHeight: SIZES.xxxl * 1.1,
+  },
+  remainderGreen: {
+    color: COLORS.forest,
+  },
+  remainderPer: {
+    fontFamily: FONTS.sans.light,
+    fontSize: SIZES.base,
+    color: COLORS.placeholder,
+    paddingBottom: SPACING.xs,
+  },
+  insolventCard: {
+    backgroundColor: COLORS.parchmentDark,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.ember,
+    borderRadius: RADIUS.sm,
+    padding: SPACING.md,
+  },
+  insolventText: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.base,
+    color: COLORS.hearth,
+    lineHeight: SIZES.base * 1.7,
+  },
+
+  // ─── Synthesis bullets ───────────────────────────────────────────────────────
   loadingWrap: {
     alignItems: 'center',
     paddingVertical: SPACING.xxl,
@@ -182,18 +315,18 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     lineHeight: SIZES.md * 1.65,
   },
-  confirmQuestion: {
-    fontFamily: FONTS.serif.bold,
-    fontSize: SIZES.xl,
-    color: COLORS.hearth,
-    marginTop: SPACING.sm,
-  },
+
+  // ─── Actions ─────────────────────────────────────────────────────────────────
   confirmBtn: {
     backgroundColor: COLORS.forest,
     borderRadius: RADIUS.sm,
     paddingVertical: SPACING.md,
     alignItems: 'center',
+    marginTop: SPACING.sm,
     ...SHADOW.soft,
+  },
+  confirmBtnEmber: {
+    backgroundColor: COLORS.ember,
   },
   confirmBtnLabel: {
     fontFamily: FONTS.sans.medium,
