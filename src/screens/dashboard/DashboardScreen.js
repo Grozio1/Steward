@@ -1108,40 +1108,24 @@ export default function DashboardScreen({ navigation }) {
             <StewardText style={styles.sectionHint}>Tap any bar to see the breakdown</StewardText>
 
             <TouchableOpacity activeOpacity={0.85} onPress={() => setShowEssentialsDetail(true)}>
-              <View style={{ position: 'relative' }}>
-                <AllocationBar allocation={essentialsBar} />
-                <Ionicons name="chevron-forward" size={14} color={COLORS.sage} style={{ position: 'absolute', top: SPACING.sm, right: SPACING.lg }} />
-              </View>
-              <StewardText variant="caption" style={{ color: COLORS.placeholder, marginTop: 2, paddingHorizontal: SPACING.md }}>Housing, utilities, groceries & more</StewardText>
+              <AllocationBar allocation={essentialsBar} />
             </TouchableOpacity>
 
             {debtBar.amount > 0 && (
               <TouchableOpacity activeOpacity={0.85} onPress={() => setShowDebtDetail(true)}>
-                <View style={{ position: 'relative' }}>
-                  <AllocationBar allocation={debtBar} />
-                  <Ionicons name="chevron-forward" size={14} color={COLORS.sage} style={{ position: 'absolute', top: SPACING.sm, right: SPACING.lg }} />
-                </View>
-                <StewardText variant="caption" style={{ color: COLORS.placeholder, marginTop: 2, paddingHorizontal: SPACING.md }}>{hasDebtAccel ? `Extra going toward ${debtAccelName}` : 'Minimums covered'}</StewardText>
+                <AllocationBar allocation={debtBar} />
               </TouchableOpacity>
             )}
 
             {goalsBar.amount > 0 && (
               <TouchableOpacity activeOpacity={0.85} onPress={() => setShowGoalsDetail(true)}>
-                <View style={{ position: 'relative' }}>
-                  <AllocationBar allocation={goalsBar} />
-                  <Ionicons name="chevron-forward" size={14} color={COLORS.sage} style={{ position: 'absolute', top: SPACING.sm, right: SPACING.lg }} />
-                </View>
-                <StewardText variant="caption" style={{ color: COLORS.placeholder, marginTop: 2, paddingHorizontal: SPACING.md }}>{activeGoalsCount > 0 ? `${activeGoalsCount} goal${activeGoalsCount !== 1 ? 's' : ''} active` : 'Building your future'}</StewardText>
+                <AllocationBar allocation={goalsBar} />
               </TouchableOpacity>
             )}
 
             {lifeBar.amount > 0 && (
               <TouchableOpacity activeOpacity={0.85} onPress={() => setShowLifeDetail(true)}>
-                <View style={{ position: 'relative' }}>
-                  <AllocationBar allocation={lifeBar} />
-                  <Ionicons name="chevron-forward" size={14} color={COLORS.sage} style={{ position: 'absolute', top: SPACING.sm, right: SPACING.lg }} />
-                </View>
-                <StewardText variant="caption" style={{ color: COLORS.placeholder, marginTop: 2, paddingHorizontal: SPACING.md }}>Dining, entertainment & personal</StewardText>
+                <AllocationBar allocation={lifeBar} />
               </TouchableOpacity>
             )}
           </View>
