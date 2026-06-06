@@ -60,7 +60,7 @@ const s = StyleSheet.create({
     fontSize: 42,
     color: COLORS.hearth,
     letterSpacing: 0.5,
-    marginTop: SPACING.md,
+    marginTop: SPACING.lg,
   },
 
   tagline: {
