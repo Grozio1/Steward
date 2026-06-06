@@ -84,13 +84,9 @@ export const STEPS = [
     id: 'fixedCommitments',
     getMessage: () =>
       "Now the things that hit automatically — rent, utilities, insurance, subscriptions. Walk me through those.",
-    inputType: 'list',
+    inputType: 'bareMinimum',
     key: 'fixedCommitments',
-    namePlaceholder: 'e.g. Rent',
-    amountPlaceholder: '0',
-    showFrequency: true,
     submitLabel: 'Done',
-    skipLabel: 'None',
   },
   {
     id: 'debts',

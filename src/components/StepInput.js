@@ -277,6 +277,132 @@ function ListStep({ step, onSubmit }) {
   );
 }
 
+// ─── Bare minimum template ────────────────────────────────────────────────────
+const LIFE_STAGE_CATEGORIES = {
+  starting_out:      ['Rent', 'Utilities', 'Groceries', 'Transportation', 'Phone', 'Health insurance'],
+  building_career:   ['Rent/Mortgage', 'Utilities', 'Groceries', 'Transportation', 'Phone', 'Health insurance', 'Car insurance'],
+  growing_household: ['Mortgage', 'Utilities', 'Groceries', 'Transportation', 'Phone', 'Health insurance', 'Car insurance', 'Life insurance', 'Childcare'],
+  peak_earning:      ['Mortgage', 'Utilities', 'Groceries', 'Transportation', 'Phone', 'Insurance'],
+  pre_retirement:    ['Housing', 'Utilities', 'Groceries', 'Transportation', 'Phone', 'Insurance', 'Healthcare'],
+  retired:           ['Housing', 'Utilities', 'Groceries', 'Transportation', 'Phone', 'Insurance', 'Healthcare'],
+};
+const DEFAULT_CATEGORIES = ['Rent', 'Utilities', 'Groceries', 'Transportation', 'Phone'];
+
+function ExpenseCard({ item, onChange, onRemove }) {
+  const divisor = FREQUENCIES.find((f) => f.value === item.frequency)?.divisor || 1;
+  const monthly = item.amount ? Math.round(Number(item.amount) / divisor) : null;
+
+  return (
+    <View style={bm.card}>
+      <View style={bm.cardRow}>
+        <TextInput
+          style={[inputBase, bm.nameInput]}
+          value={item.name}
+          onChangeText={(v) => onChange({ ...item, name: v })}
+          placeholder="Expense name"
+          placeholderTextColor={COLORS.placeholder}
+          returnKeyType="next"
+        />
+        <View style={styles.amountWrap}>
+          <StewardText style={styles.dollarSignSmall}>$</StewardText>
+          <TextInput
+            style={[inputBase, styles.amountInput]}
+            value={item.amount}
+            onChangeText={(v) => onChange({ ...item, amount: v.replace(/[^0-9]/g, '') })}
+            keyboardType="number-pad"
+            placeholder="0"
+            placeholderTextColor={COLORS.placeholder}
+            returnKeyType="done"
+          />
+        </View>
+        <TouchableOpacity onPress={onRemove} style={styles.removeBtn}>
+          <StewardText style={styles.removeLabel}>×</StewardText>
+        </TouchableOpacity>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <View style={bm.freqRow}>
+          {FREQUENCIES.map((f) => (
+            <TouchableOpacity
+              key={f.value}
+              style={[styles.freqPill, item.frequency === f.value && styles.freqPillActive]}
+              onPress={() => onChange({ ...item, frequency: f.value })}
+            >
+              <StewardText style={[styles.freqPillLabel, item.frequency === f.value && styles.freqPillLabelActive]}>
+                {f.label}
+              </StewardText>
+            </TouchableOpacity>
+          ))}
+          {item.frequency !== 'monthly' && monthly !== null && (
+            <StewardText style={bm.moEquiv}>= ${monthly}/mo</StewardText>
+          )}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+function BareMinimumStep({ step, answers, onSubmit }) {
+  const categories = LIFE_STAGE_CATEGORIES[answers?.lifeStageSignal] || DEFAULT_CATEGORIES;
+  const [items, setItems] = useState(() =>
+    categories.map((name, i) => ({ id: `${name}_${i}`, name, amount: '', frequency: 'monthly' }))
+  );
+
+  const update = (id, updated) =>
+    setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
+  const remove = (id) => setItems((prev) => prev.filter((item) => item.id !== id));
+  const add = () =>
+    setItems((prev) => [...prev, { id: `custom_${Date.now()}`, name: '', amount: '', frequency: 'monthly' }]);
+
+  const done = () => {
+    const result = items
+      .filter((item) => item.name.trim() && item.amount)
+      .map((item) => {
+        const divisor = FREQUENCIES.find((f) => f.value === item.frequency)?.divisor || 1;
+        return {
+          name: item.name.trim(),
+          amount: Number(item.amount),
+          frequency: item.frequency,
+          monthlyAmount: Math.round(Number(item.amount) / divisor),
+          variable: false,
+        };
+      });
+    onSubmit(result);
+  };
+
+  const hasAnyFilled = items.some((item) => item.name.trim() && item.amount);
+
+  return (
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.listContent}
+    >
+      {items.map((item) => (
+        <ExpenseCard
+          key={item.id}
+          item={item}
+          onChange={(updated) => update(item.id, updated)}
+          onRemove={() => remove(item.id)}
+        />
+      ))}
+
+      <TouchableOpacity style={bm.addRow} onPress={add} activeOpacity={0.7}>
+        <StewardText style={bm.addLabel}>+ Add expense</StewardText>
+      </TouchableOpacity>
+
+      <View style={styles.footerRow}>
+        {!hasAnyFilled && (
+          <TouchableOpacity style={styles.skipBtn} onPress={() => onSubmit([])}>
+            <StewardText style={styles.skipLabel}>None</StewardText>
+          </TouchableOpacity>
+        )}
+        <SubmitButton label={step.submitLabel || 'Done'} onPress={done} disabled={!hasAnyFilled} />
+      </View>
+    </ScrollView>
+  );
+}
+
 // ─── Debt list input ───────────────────────────────────────────────────────────
 function DebtListStep({ step, onSubmit }) {
   const [items, setItems] = useState([]);
@@ -402,14 +528,15 @@ function DebtListStep({ step, onSubmit }) {
 }
 
 // ─── Dispatcher ────────────────────────────────────────────────────────────────
-export default function StepInput({ step, onSubmit }) {
+export default function StepInput({ step, onSubmit, answers }) {
   switch (step.inputType) {
-    case 'text':     return <TextStep step={step} onSubmit={onSubmit} />;
-    case 'currency': return <CurrencyStep step={step} onSubmit={onSubmit} />;
-    case 'choice':   return <ChoiceStep step={step} onSubmit={onSubmit} />;
-    case 'list':     return <ListStep step={step} onSubmit={onSubmit} />;
-    case 'debtList': return <DebtListStep step={step} onSubmit={onSubmit} />;
-    default:         return null;
+    case 'text':        return <TextStep step={step} onSubmit={onSubmit} />;
+    case 'currency':    return <CurrencyStep step={step} onSubmit={onSubmit} />;
+    case 'choice':      return <ChoiceStep step={step} onSubmit={onSubmit} />;
+    case 'list':        return <ListStep step={step} onSubmit={onSubmit} />;
+    case 'debtList':    return <DebtListStep step={step} onSubmit={onSubmit} />;
+    case 'bareMinimum': return <BareMinimumStep step={step} answers={answers} onSubmit={onSubmit} />;
+    default:            return null;
   }
 }
 
@@ -669,5 +796,46 @@ const styles = StyleSheet.create({
     fontSize: SIZES.xs,
     color: COLORS.placeholder,
     marginTop: 1,
+  },
+});
+
+const bm = StyleSheet.create({
+  card: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
+    padding: SPACING.sm,
+    gap: SPACING.xs,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  nameInput: {
+    flex: 2,
+  },
+  freqRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.xs,
+  },
+  moEquiv: {
+    fontFamily: FONTS.sans.light,
+    fontSize: SIZES.xs,
+    color: COLORS.sage,
+    alignSelf: 'center',
+    paddingLeft: SPACING.xs,
+  },
+  addRow: {
+    paddingVertical: SPACING.sm,
+    alignItems: 'center',
+  },
+  addLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.sm,
+    color: COLORS.sage,
   },
 });

@@ -180,7 +180,7 @@ export default function OnboardingScreen({ navigation }) {
         {/* Input area — only show when not typing and step is valid */}
         {!isTyping && step < STEPS.length && (
           <View style={styles.inputArea}>
-            <StepInput step={STEPS[step]} onSubmit={handleSubmit} />
+            <StepInput step={STEPS[step]} onSubmit={handleSubmit} answers={answers} />
           </View>
         )}
       </KeyboardAvoidingView>
