@@ -230,27 +230,17 @@ export async function generatePlan(profile) {
     remaining -= regularAlloc;
   }
 
-  // Layer 5 — Food
-  const food = Math.min(500, Math.max(200, Math.round(remaining * 0.22)));
+  // Layer 5 — Life (food + quality of life merged)
+  const lifeBase = Math.min(500, Math.max(200, Math.round(remaining * 0.22)));
+  const lifeExtra = Math.max(0, Math.round(remaining - lifeBase));
   allocations.push({
-    layer: 'food',
-    name: 'Food',
-    amount: food,
+    layer: 'life',
+    name: 'Life',
+    amount: lifeBase + lifeExtra,
     spent: 0,
     note: 'Active bucket. Deploy as you spend.',
   });
-  remaining -= food;
-
-  // Layer 6 — Quality of life (remainder)
-  if (remaining > 0) {
-    allocations.push({
-      layer: 'qol',
-      name: 'Quality of life',
-      amount: Math.round(remaining),
-      spent: 0,
-      note: 'Yours to deploy. No questions asked.',
-    });
-  }
+  remaining -= (lifeBase + lifeExtra);
 
   // Layer 7 — Ad hoc (always present, no preset amount)
   allocations.push({

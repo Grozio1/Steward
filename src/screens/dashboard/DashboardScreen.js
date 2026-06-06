@@ -26,12 +26,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─── Category → layer mapping ───────────────────────────────────────────────────
 const CATEGORIES = [
-  { label: 'Food & Groceries', layer: 'Food' },
-  { label: 'Transport', layer: 'Quality of life' },
-  { label: 'Health', layer: 'Quality of life' },
-  { label: 'Quality of life', layer: 'Quality of life' },
+  { label: 'Food & Groceries', layer: 'Life' },
+  { label: 'Transport', layer: 'Life' },
+  { label: 'Health', layer: 'Life' },
+  { label: 'Entertainment', layer: 'Life' },
   { label: 'Ad hoc', layer: 'Ad hoc' },
-  { label: 'Other', layer: 'Quality of life' },
+  { label: 'Other', layer: 'Life' },
 ];
 
 // ─── Quick Log Modal ─────────────────────────────────────────────────────────────
@@ -716,6 +716,10 @@ export default function DashboardScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [anomalies, setAnomalies] = useState([]);
   const [activeCrises, setActiveCrises] = useState([]);
+  const [showEssentialsDetail, setShowEssentialsDetail] = useState(false);
+  const [showDebtDetail, setShowDebtDetail] = useState(false);
+  const [showGoalsDetail, setShowGoalsDetail] = useState(false);
+  const [showLifeDetail, setShowLifeDetail] = useState(false);
   const month = currentMonth();
 
   const load = useCallback(async () => {
@@ -777,6 +781,13 @@ export default function DashboardScreen({ navigation }) {
             .filter((s) => (s.layer || '').toLowerCase().replace(/\s/g, '') === 'adhoc')
             .reduce((sum, s) => sum + s.amount, 0);
           return { ...alloc, spent: adhocSpends };
+        }
+        if (alloc.layer === 'life') {
+          const LIFE_KEYS = new Set(['life', 'food', 'quality of life', 'qol']);
+          const lifeSpends = sp
+            .filter((s) => LIFE_KEYS.has((s.layer || s.category || '').toLowerCase()))
+            .reduce((sum, s) => sum + s.amount, 0);
+          return { ...alloc, spent: lifeSpends };
         }
         const allocName = alloc.name.toLowerCase();
         const categorySpends = sp
@@ -897,6 +908,53 @@ export default function DashboardScreen({ navigation }) {
   const totalSpent = plan?.allocations.reduce((s, a) => s + (a.spent || 0), 0) || 0;
   const left = plan ? plan.income - totalSpent : 0;
   const isOver = left < 0;
+
+  // Consolidated bar groups
+  const essentialsLayers = plan?.allocations?.filter(a =>
+    a.layer?.startsWith('fixed') || a.layer === 'regular_expenses'
+  ) || [];
+  const debtLayers = plan?.allocations?.filter(a =>
+    a.layer === 'debt_floor' || a.layer === 'debt_accelerator'
+  ) || [];
+  const goalsLayers = plan?.allocations?.filter(a =>
+    a.layer === 'stability' || a.layer?.startsWith('goal_') || a.layer?.startsWith('investment_')
+  ) || [];
+  const lifeLayers = plan?.allocations?.filter(a =>
+    a.layer === 'life' || a.layer === 'adhoc' || a.layer?.startsWith('qol')
+  ) || [];
+
+  const hasDebtAccel = debtLayers.some(a => a.layer === 'debt_accelerator');
+  const debtAccelName = plan?.allocations?.find(a => a.layer === 'debt_accelerator')?.name || 'debt payoff';
+  const activeGoalsCount = goalsLayers.filter(a => a.layer?.startsWith('goal_')).length;
+
+  const essentialsBar = {
+    layer: 'essentials',
+    name: 'Essentials',
+    amount: essentialsLayers.reduce((s, a) => s + a.amount, 0),
+    spent: essentialsLayers.reduce((s, a) => s + (a.spent || 0), 0),
+    note: 'Housing, utilities, groceries & more',
+  };
+  const debtBar = {
+    layer: 'debt',
+    name: 'Debt',
+    amount: debtLayers.reduce((s, a) => s + a.amount, 0),
+    spent: debtLayers.reduce((s, a) => s + (a.spent || 0), 0),
+    note: hasDebtAccel ? `Extra toward ${debtAccelName}` : 'Minimums covered',
+  };
+  const goalsBar = {
+    layer: 'goals',
+    name: 'Goals & savings',
+    amount: goalsLayers.reduce((s, a) => s + a.amount, 0),
+    spent: goalsLayers.reduce((s, a) => s + (a.spent || 0), 0),
+    note: activeGoalsCount > 0 ? `${activeGoalsCount} goal${activeGoalsCount !== 1 ? 's' : ''} active` : 'Building your future',
+  };
+  const lifeBar = {
+    layer: 'life_group',
+    name: 'Life',
+    amount: lifeLayers.reduce((s, a) => s + a.amount, 0),
+    spent: lifeLayers.reduce((s, a) => s + (a.spent || 0), 0),
+    note: 'Dining, entertainment & personal',
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -1043,30 +1101,49 @@ export default function DashboardScreen({ navigation }) {
           </StewardCard>
         )}
 
-        {/* Allocation bars — tappable */}
+        {/* Allocation bars — four consolidated bars */}
         {plan?.allocations?.length ? (
           <View style={styles.section}>
             <StewardText style={styles.sectionLabel}>YOUR PLAN</StewardText>
-            <StewardText style={styles.sectionHint}>Tap any row to see or remove spends</StewardText>
-            {plan.allocations.map((alloc, i) => (
-              <TouchableOpacity
-                key={i}
-                onPress={() => {
-                  if (alloc.layer === 'fixed') {
-                    setFixedModalVisible(true);
-                  } else if (alloc.layer === 'debt_floor') {
-                    setDebtModalVisible(true);
-                  } else if (alloc.layer === 'stability' || alloc.layer === 'debt_accelerator' || alloc.layer?.startsWith('goal_') || alloc.layer?.startsWith('investment_')) {
-                    setTransferAllocation(alloc);
-                  } else {
-                    setDetailAllocation(alloc);
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <AllocationBar allocation={alloc} />
+            <StewardText style={styles.sectionHint}>Tap any bar to see the breakdown</StewardText>
+
+            <TouchableOpacity activeOpacity={0.85} onPress={() => setShowEssentialsDetail(true)}>
+              <View style={{ position: 'relative' }}>
+                <AllocationBar allocation={essentialsBar} />
+                <Ionicons name="chevron-forward" size={14} color={COLORS.sage} style={{ position: 'absolute', top: SPACING.sm, right: SPACING.lg }} />
+              </View>
+              <StewardText variant="caption" style={{ color: COLORS.placeholder, marginTop: 2, paddingHorizontal: SPACING.md }}>Housing, utilities, groceries & more</StewardText>
+            </TouchableOpacity>
+
+            {debtBar.amount > 0 && (
+              <TouchableOpacity activeOpacity={0.85} onPress={() => setShowDebtDetail(true)}>
+                <View style={{ position: 'relative' }}>
+                  <AllocationBar allocation={debtBar} />
+                  <Ionicons name="chevron-forward" size={14} color={COLORS.sage} style={{ position: 'absolute', top: SPACING.sm, right: SPACING.lg }} />
+                </View>
+                <StewardText variant="caption" style={{ color: COLORS.placeholder, marginTop: 2, paddingHorizontal: SPACING.md }}>{hasDebtAccel ? `Extra going toward ${debtAccelName}` : 'Minimums covered'}</StewardText>
               </TouchableOpacity>
-            ))}
+            )}
+
+            {goalsBar.amount > 0 && (
+              <TouchableOpacity activeOpacity={0.85} onPress={() => setShowGoalsDetail(true)}>
+                <View style={{ position: 'relative' }}>
+                  <AllocationBar allocation={goalsBar} />
+                  <Ionicons name="chevron-forward" size={14} color={COLORS.sage} style={{ position: 'absolute', top: SPACING.sm, right: SPACING.lg }} />
+                </View>
+                <StewardText variant="caption" style={{ color: COLORS.placeholder, marginTop: 2, paddingHorizontal: SPACING.md }}>{activeGoalsCount > 0 ? `${activeGoalsCount} goal${activeGoalsCount !== 1 ? 's' : ''} active` : 'Building your future'}</StewardText>
+              </TouchableOpacity>
+            )}
+
+            {lifeBar.amount > 0 && (
+              <TouchableOpacity activeOpacity={0.85} onPress={() => setShowLifeDetail(true)}>
+                <View style={{ position: 'relative' }}>
+                  <AllocationBar allocation={lifeBar} />
+                  <Ionicons name="chevron-forward" size={14} color={COLORS.sage} style={{ position: 'absolute', top: SPACING.sm, right: SPACING.lg }} />
+                </View>
+                <StewardText variant="caption" style={{ color: COLORS.placeholder, marginTop: 2, paddingHorizontal: SPACING.md }}>Dining, entertainment & personal</StewardText>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <StewardCard style={styles.emptyCard}>
@@ -1123,6 +1200,142 @@ export default function DashboardScreen({ navigation }) {
           setSpends(spends.map((s) => s.id === id ? { ...s, ...updates } : s));
         }}
       />
+
+      {/* ─── Essentials detail sheet ─── */}
+      <Modal visible={showEssentialsDetail} animationType="slide" transparent presentationStyle="overFullScreen">
+        <View style={detail.overlay}>
+          <View style={[detail.sheet, { maxHeight: '90%' }]}>
+            <View style={detail.header}>
+              <StewardText style={detail.title}>Essentials</StewardText>
+              <TouchableOpacity onPress={() => setShowEssentialsDetail(false)} style={detail.closeBtn}>
+                <StewardText style={detail.closeLabel}>Done</StewardText>
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {essentialsLayers.map((alloc, i) => (
+                <TouchableOpacity
+                  key={i}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (alloc.layer === 'fixed') {
+                      setFixedModalVisible(true);
+                    } else {
+                      setDetailAllocation(alloc);
+                    }
+                  }}
+                >
+                  <AllocationBar allocation={alloc} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={[modal.logBtn, { marginTop: SPACING.md }]}
+              onPress={() => setShowEssentialsDetail(false)}
+            >
+              <StewardText style={modal.logBtnLabel}>Done</StewardText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Debt detail sheet ─── */}
+      <Modal visible={showDebtDetail} animationType="slide" transparent presentationStyle="overFullScreen">
+        <View style={detail.overlay}>
+          <View style={[detail.sheet, { maxHeight: '90%' }]}>
+            <View style={detail.header}>
+              <StewardText style={detail.title}>Debt</StewardText>
+              <TouchableOpacity onPress={() => setShowDebtDetail(false)} style={detail.closeBtn}>
+                <StewardText style={detail.closeLabel}>Done</StewardText>
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {debtLayers.map((alloc, i) => (
+                <TouchableOpacity
+                  key={i}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (alloc.layer === 'debt_floor') {
+                      setDebtModalVisible(true);
+                    } else {
+                      setTransferAllocation(alloc);
+                    }
+                  }}
+                >
+                  <AllocationBar allocation={alloc} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={[modal.logBtn, { marginTop: SPACING.md }]}
+              onPress={() => setShowDebtDetail(false)}
+            >
+              <StewardText style={modal.logBtnLabel}>Done</StewardText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Goals & savings detail sheet ─── */}
+      <Modal visible={showGoalsDetail} animationType="slide" transparent presentationStyle="overFullScreen">
+        <View style={detail.overlay}>
+          <View style={[detail.sheet, { maxHeight: '90%' }]}>
+            <View style={detail.header}>
+              <StewardText style={detail.title}>Goals & savings</StewardText>
+              <TouchableOpacity onPress={() => setShowGoalsDetail(false)} style={detail.closeBtn}>
+                <StewardText style={detail.closeLabel}>Done</StewardText>
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {goalsLayers.map((alloc, i) => (
+                <TouchableOpacity
+                  key={i}
+                  activeOpacity={0.7}
+                  onPress={() => setTransferAllocation(alloc)}
+                >
+                  <AllocationBar allocation={alloc} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={[modal.logBtn, { marginTop: SPACING.md }]}
+              onPress={() => setShowGoalsDetail(false)}
+            >
+              <StewardText style={modal.logBtnLabel}>Done</StewardText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Life detail sheet ─── */}
+      <Modal visible={showLifeDetail} animationType="slide" transparent presentationStyle="overFullScreen">
+        <View style={detail.overlay}>
+          <View style={[detail.sheet, { maxHeight: '90%' }]}>
+            <View style={detail.header}>
+              <StewardText style={detail.title}>Life</StewardText>
+              <TouchableOpacity onPress={() => setShowLifeDetail(false)} style={detail.closeBtn}>
+                <StewardText style={detail.closeLabel}>Done</StewardText>
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {lifeLayers.map((alloc, i) => (
+                <TouchableOpacity
+                  key={i}
+                  activeOpacity={0.7}
+                  onPress={() => setDetailAllocation(alloc)}
+                >
+                  <AllocationBar allocation={alloc} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={[modal.logBtn, { marginTop: SPACING.md }]}
+              onPress={() => setShowLifeDetail(false)}
+            >
+              <StewardText style={modal.logBtnLabel}>Done</StewardText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
