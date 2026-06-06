@@ -1346,64 +1346,46 @@ export default function DashboardScreen({ navigation }) {
       {/* ─── Debt shortfall exception ─── */}
       <Modal visible={showDebtShortfall} animationType="slide" transparent presentationStyle="overFullScreen">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={detail.overlay}>
-            <View style={[detail.sheet, { maxHeight: '90%' }]}>
-              <View style={detail.header}>
-                <StewardText style={detail.title}>Paid less than planned</StewardText>
-                <TouchableOpacity
-                  onPress={() => { setShowDebtShortfall(false); setShortfallAmount(''); setShortfallDebt(null); }}
-                  style={detail.closeBtn}
-                >
-                  <StewardText style={detail.closeLabel}>Cancel</StewardText>
-                </TouchableOpacity>
+          <View style={exStyle.overlay}>
+            <View style={exStyle.sheet}>
+              <StewardText style={detail.title}>I paid less than planned</StewardText>
+              <StewardText style={[detail.summaryText, { marginTop: SPACING.sm, marginBottom: SPACING.md }]}>
+                How much did you actually pay toward debt this month?
+              </StewardText>
+              <View style={exStyle.inputRow}>
+                <StewardText style={modal.dollar}>$</StewardText>
+                <TextInput
+                  style={exStyle.input}
+                  value={shortfallAmount}
+                  onChangeText={t => setShortfallAmount(t.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  placeholderTextColor={COLORS.placeholder}
+                  autoFocus
+                />
               </View>
-              <View style={detail.summary}>
-                <StewardText style={detail.summaryText}>
-                  Select which debt and enter what you actually paid. Steward will update the record.
-                </StewardText>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {(plan?.allocations?.find(a => a.layer === 'debt_floor')?.items || []).map((item, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    style={[exStyle.itemRow, shortfallDebt?.name === item.name && exStyle.itemRowActive]}
-                    onPress={() => setShortfallDebt(item)}
-                  >
-                    <StewardText style={[exStyle.itemLabel, shortfallDebt?.name === item.name && exStyle.itemLabelActive]}>
-                      {item.name}
-                    </StewardText>
-                    <StewardText style={exStyle.itemAmount}>{formatCurrency(item.amount)}/mo</StewardText>
-                  </TouchableOpacity>
-                ))}
-                {shortfallDebt && (
-                  <View style={[detail.editForm, { marginTop: SPACING.md }]}>
-                    <StewardText style={detail.editLabel}>Amount actually paid</StewardText>
-                    <View style={detail.editAmountRow}>
-                      <StewardText style={detail.editDollar}>$</StewardText>
-                      <TextInput
-                        style={detail.editAmountInput}
-                        value={shortfallAmount}
-                        onChangeText={t => setShortfallAmount(t.replace(/[^0-9]/g, ''))}
-                        keyboardType="number-pad"
-                        placeholder="0"
-                        placeholderTextColor={COLORS.placeholder}
-                        autoFocus
-                      />
-                    </View>
-                  </View>
-                )}
-              </ScrollView>
+              <StewardText style={exStyle.impactNote}>
+                Paying less than the minimum can affect your credit and extend your payoff timeline.
+              </StewardText>
               <TouchableOpacity
-                style={[modal.logBtn, { marginTop: SPACING.md }, (!shortfallDebt || !shortfallAmount) && modal.logBtnDisabled]}
-                disabled={!shortfallDebt || !shortfallAmount}
+                style={[exStyle.primaryBtn, !shortfallAmount && { backgroundColor: COLORS.border }]}
+                disabled={!shortfallAmount}
                 onPress={async () => {
-                  await handleAdjustDebt(shortfallDebt.name, Number(shortfallAmount), 'Paid less than planned');
+                  const val = Number(shortfallAmount);
+                  const existing = await getDebtActuals(month);
+                  await saveDebtActuals(month, { ...existing, shortfall: val, date: new Date().toISOString() });
                   setShowDebtShortfall(false);
                   setShortfallAmount('');
-                  setShortfallDebt(null);
+                  await load();
                 }}
               >
-                <StewardText style={modal.logBtnLabel}>Save</StewardText>
+                <StewardText style={modal.logBtnLabel}>Log it</StewardText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={exStyle.cancelLink}
+                onPress={() => { setShowDebtShortfall(false); setShortfallAmount(''); }}
+              >
+                <StewardText style={[detail.summaryText, { textDecorationLine: 'underline' }]}>Cancel</StewardText>
               </TouchableOpacity>
             </View>
           </View>
@@ -1413,64 +1395,46 @@ export default function DashboardScreen({ navigation }) {
       {/* ─── Savings withdrawal exception ─── */}
       <Modal visible={showSavingsWithdrawal} animationType="slide" transparent presentationStyle="overFullScreen">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={detail.overlay}>
-            <View style={[detail.sheet, { maxHeight: '90%' }]}>
-              <View style={detail.header}>
-                <StewardText style={detail.title}>I used some savings</StewardText>
-                <TouchableOpacity
-                  onPress={() => { setShowSavingsWithdrawal(false); setWithdrawalAmount(''); setWithdrawalGoal(null); }}
-                  style={detail.closeBtn}
-                >
-                  <StewardText style={detail.closeLabel}>Cancel</StewardText>
-                </TouchableOpacity>
+          <View style={exStyle.overlay}>
+            <View style={exStyle.sheet}>
+              <StewardText style={detail.title}>I used some savings</StewardText>
+              <StewardText style={[detail.summaryText, { marginTop: SPACING.sm, marginBottom: SPACING.md }]}>
+                How much did you withdraw?
+              </StewardText>
+              <View style={exStyle.inputRow}>
+                <StewardText style={modal.dollar}>$</StewardText>
+                <TextInput
+                  style={exStyle.input}
+                  value={withdrawalAmount}
+                  onChangeText={t => setWithdrawalAmount(t.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  placeholderTextColor={COLORS.placeholder}
+                  autoFocus
+                />
               </View>
-              <View style={detail.summary}>
-                <StewardText style={detail.summaryText}>
-                  Select which bucket and enter how much you withdrew.
-                </StewardText>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {goalsLayers.map((alloc, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    style={[exStyle.itemRow, withdrawalGoal?.layer === alloc.layer && exStyle.itemRowActive]}
-                    onPress={() => setWithdrawalGoal(alloc)}
-                  >
-                    <StewardText style={[exStyle.itemLabel, withdrawalGoal?.layer === alloc.layer && exStyle.itemLabelActive]}>
-                      {alloc.name}
-                    </StewardText>
-                    <StewardText style={exStyle.itemAmount}>{formatCurrency(alloc.amount)}/mo</StewardText>
-                  </TouchableOpacity>
-                ))}
-                {withdrawalGoal && (
-                  <View style={[detail.editForm, { marginTop: SPACING.md }]}>
-                    <StewardText style={detail.editLabel}>Amount withdrawn</StewardText>
-                    <View style={detail.editAmountRow}>
-                      <StewardText style={detail.editDollar}>$</StewardText>
-                      <TextInput
-                        style={detail.editAmountInput}
-                        value={withdrawalAmount}
-                        onChangeText={t => setWithdrawalAmount(t.replace(/[^0-9]/g, ''))}
-                        keyboardType="number-pad"
-                        placeholder="0"
-                        placeholderTextColor={COLORS.placeholder}
-                        autoFocus
-                      />
-                    </View>
-                  </View>
-                )}
-              </ScrollView>
+              <StewardText style={exStyle.impactNote}>
+                Your buffer balance will be updated and your goal health rechecked on next load.
+              </StewardText>
               <TouchableOpacity
-                style={[modal.logBtn, { marginTop: SPACING.md }, (!withdrawalGoal || !withdrawalAmount) && modal.logBtnDisabled]}
-                disabled={!withdrawalGoal || !withdrawalAmount}
+                style={[exStyle.primaryBtn, !withdrawalAmount && { backgroundColor: COLORS.border }]}
+                disabled={!withdrawalAmount}
                 onPress={async () => {
-                  await handleAddTransfer({ layer: withdrawalGoal.layer, type: 'withdrawal', amount: Number(withdrawalAmount), note: 'Withdrawal recorded' });
+                  const val = Number(withdrawalAmount);
+                  const existing = await getFixedOverrides(month);
+                  await saveFixedOverrides(month, { ...existing, savingsWithdrawal: val, date: new Date().toISOString() });
                   setShowSavingsWithdrawal(false);
                   setWithdrawalAmount('');
-                  setWithdrawalGoal(null);
+                  await load();
                 }}
               >
-                <StewardText style={modal.logBtnLabel}>Save</StewardText>
+                <StewardText style={modal.logBtnLabel}>Log it</StewardText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={exStyle.cancelLink}
+                onPress={() => { setShowSavingsWithdrawal(false); setWithdrawalAmount(''); }}
+              >
+                <StewardText style={[detail.summaryText, { textDecorationLine: 'underline' }]}>Cancel</StewardText>
               </TouchableOpacity>
             </View>
           </View>
@@ -1480,64 +1444,64 @@ export default function DashboardScreen({ navigation }) {
       {/* ─── Essential overage exception ─── */}
       <Modal visible={showEssentialOverage} animationType="slide" transparent presentationStyle="overFullScreen">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={detail.overlay}>
-            <View style={[detail.sheet, { maxHeight: '90%' }]}>
-              <View style={detail.header}>
-                <StewardText style={detail.title}>Essential over plan</StewardText>
-                <TouchableOpacity
-                  onPress={() => { setShowEssentialOverage(false); setOvageAmount(''); setOvageItem(null); }}
-                  style={detail.closeBtn}
-                >
-                  <StewardText style={detail.closeLabel}>Cancel</StewardText>
-                </TouchableOpacity>
-              </View>
-              <View style={detail.summary}>
-                <StewardText style={detail.summaryText}>
-                  Select the item that came in higher and enter the actual amount.
-                </StewardText>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {(plan?.allocations?.find(a => a.layer === 'fixed')?.items || []).map((item, i) => (
+          <View style={exStyle.overlay}>
+            <View style={exStyle.sheet}>
+              <StewardText style={detail.title}>An essential came in higher</StewardText>
+              <StewardText style={[detail.summaryText, { marginTop: SPACING.sm }]}>
+                Which one, and what did it actually cost?
+              </StewardText>
+              <View style={exStyle.pillRow}>
+                {essentialsLayers.flatMap(alloc => alloc.items || []).map((item, i) => (
                   <TouchableOpacity
                     key={i}
-                    style={[exStyle.itemRow, ovageItem?.name === item.name && exStyle.itemRowActive]}
+                    style={[exStyle.pill, ovageItem?.name === item.name && exStyle.pillActive]}
                     onPress={() => { setOvageItem(item); setOvageAmount(String(item.amount)); }}
                   >
-                    <StewardText style={[exStyle.itemLabel, ovageItem?.name === item.name && exStyle.itemLabelActive]}>
+                    <StewardText style={[exStyle.pillLabel, ovageItem?.name === item.name && exStyle.pillLabelActive]}>
                       {item.name}
                     </StewardText>
-                    <StewardText style={exStyle.itemAmount}>{formatCurrency(item.amount)}/mo</StewardText>
                   </TouchableOpacity>
                 ))}
-                {ovageItem && (
-                  <View style={[detail.editForm, { marginTop: SPACING.md }]}>
-                    <StewardText style={detail.editLabel}>Actual amount this month</StewardText>
-                    <View style={detail.editAmountRow}>
-                      <StewardText style={detail.editDollar}>$</StewardText>
-                      <TextInput
-                        style={detail.editAmountInput}
-                        value={ovageAmount}
-                        onChangeText={t => setOvageAmount(t.replace(/[^0-9]/g, ''))}
-                        keyboardType="number-pad"
-                        placeholder="0"
-                        placeholderTextColor={COLORS.placeholder}
-                        autoFocus
-                      />
-                    </View>
-                  </View>
-                )}
-              </ScrollView>
+              </View>
+              {ovageItem && (
+                <View style={exStyle.inputRow}>
+                  <StewardText style={modal.dollar}>$</StewardText>
+                  <TextInput
+                    style={exStyle.input}
+                    value={ovageAmount}
+                    onChangeText={t => setOvageAmount(t.replace(/[^0-9]/g, ''))}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                    placeholderTextColor={COLORS.placeholder}
+                    autoFocus
+                  />
+                </View>
+              )}
+              <StewardText style={exStyle.impactNote}>
+                We'll note the variance. If this keeps happening, Steward will suggest updating your estimate.
+              </StewardText>
               <TouchableOpacity
-                style={[modal.logBtn, { marginTop: SPACING.md }, (!ovageItem || !ovageAmount) && modal.logBtnDisabled]}
+                style={[exStyle.primaryBtn, (!ovageItem || !ovageAmount) && { backgroundColor: COLORS.border }]}
                 disabled={!ovageItem || !ovageAmount}
                 onPress={async () => {
-                  await handleAdjustCommitment(ovageItem.name, Number(ovageAmount));
+                  const existing = await getFixedOverrides(month);
+                  await saveFixedOverrides(month, {
+                    ...existing,
+                    [ovageItem.name]: { actual: Number(ovageAmount), estimated: ovageItem.amount, date: new Date().toISOString() },
+                  });
                   setShowEssentialOverage(false);
                   setOvageAmount('');
                   setOvageItem(null);
+                  await load();
                 }}
               >
-                <StewardText style={modal.logBtnLabel}>Save</StewardText>
+                <StewardText style={modal.logBtnLabel}>Log it</StewardText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={exStyle.cancelLink}
+                onPress={() => { setShowEssentialOverage(false); setOvageAmount(''); setOvageItem(null); }}
+              >
+                <StewardText style={[detail.summaryText, { textDecorationLine: 'underline' }]}>Cancel</StewardText>
               </TouchableOpacity>
             </View>
           </View>
@@ -1901,43 +1865,18 @@ const transfer = StyleSheet.create({
 });
 
 const exStyle = StyleSheet.create({
-  exLink: {
-    alignSelf: 'center',
-    paddingVertical: SPACING.sm,
-    marginTop: SPACING.xs,
-  },
-  exLinkLabel: {
-    fontFamily: FONTS.sans.medium,
-    fontSize: SIZES.sm,
-    color: COLORS.ember,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: SPACING.sm + 2,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: SPACING.xs,
-  },
-  itemRowActive: {
-    borderColor: COLORS.forest,
-    backgroundColor: COLORS.forestMuted,
-  },
-  itemLabel: {
-    fontFamily: FONTS.sans.regular,
-    fontSize: SIZES.base,
-    color: COLORS.hearth,
-  },
-  itemLabelActive: {
-    fontFamily: FONTS.sans.medium,
-    color: COLORS.forest,
-  },
-  itemAmount: {
-    fontFamily: FONTS.sans.light,
-    fontSize: SIZES.sm,
-    color: COLORS.placeholder,
-  },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: COLORS.white, borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl, padding: SPACING.lg, paddingBottom: SPACING.xxl },
+  inputRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: COLORS.border, marginBottom: SPACING.sm },
+  input: { fontFamily: FONTS.sans.medium, fontSize: SIZES.xxxl, color: COLORS.hearth, flex: 1, paddingVertical: SPACING.sm, paddingLeft: SPACING.xs },
+  impactNote: { color: COLORS.placeholder, fontSize: SIZES.sm, lineHeight: SIZES.sm * 1.6, marginTop: SPACING.md },
+  primaryBtn: { backgroundColor: COLORS.forest, borderRadius: RADIUS.md, paddingVertical: SPACING.md, alignItems: 'center', marginTop: SPACING.lg },
+  cancelLink: { alignItems: 'center', paddingVertical: SPACING.md },
+  exLink: { alignItems: 'center', paddingVertical: SPACING.md, marginTop: SPACING.xs },
+  exLinkLabel: { fontFamily: FONTS.sans.light, fontSize: SIZES.sm, color: COLORS.placeholder, textDecorationLine: 'underline' },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginVertical: SPACING.md },
+  pill: { borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.full, paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs },
+  pillActive: { backgroundColor: COLORS.forest, borderColor: COLORS.forest },
+  pillLabel: { fontFamily: FONTS.sans.medium, fontSize: SIZES.sm, color: COLORS.hearth },
+  pillLabelActive: { color: COLORS.parchment },
 });
