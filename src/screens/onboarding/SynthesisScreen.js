@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
 import { generateSynthesis, generatePlan } from '../../ai/claude';
 import { toMonthly } from '../../ai/stub';
-import { classifyLifeStage } from '../../ai/classification';
+import { classifyLifeStage, parsePrioritySignal } from '../../ai/classification';
 import { saveProfile, savePlan, currentMonth, formatCurrency } from '../../data/store';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
@@ -66,6 +66,10 @@ export default function SynthesisScreen({ route, navigation }) {
   const handleConfirm = async () => {
     const { lifeStage, inTransition, classifiedAt } = classifyLifeStage(profile);
     const enrichedProfile = { ...profile, lifeStage, inTransition, lifeStageSetAt: classifiedAt };
+    const prioritySignal = parsePrioritySignal(profile.priorities);
+    if (prioritySignal) {
+      enrichedProfile.prioritySignal = prioritySignal;
+    }
 
     await saveProfile(enrichedProfile);
     const plan = await generatePlan(enrichedProfile);

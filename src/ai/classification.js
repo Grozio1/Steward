@@ -90,3 +90,17 @@ export function classifyLifeStage(profile) {
     classifiedAt: new Date().toISOString(),
   };
 }
+
+export function parsePrioritySignal(prioritiesText) {
+  if (!prioritiesText) return null;
+  const t = prioritiesText.toLowerCase();
+
+  if (/debt|pay.?off|owe|loan|credit card|get out/.test(t)) return 'debt_priority';
+  if (/retire|retirement|401k|ira|pension/.test(t)) return 'retirement_priority';
+  if (/hous|rent|mortgage|buy a home|own a home/.test(t)) return 'housing_priority';
+  if (/stress|overwhelm|anxious|scared|worry|worried|behind/.test(t)) return 'stress_priority';
+  if (/protect|insurance|family|kids|children|spouse|partner|life insurance/.test(t)) return 'protection_priority';
+  if (/sav|buffer|emergency|rainy day|cushion|build/.test(t)) return 'savings_priority';
+
+  return null;
+}

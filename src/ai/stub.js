@@ -280,6 +280,37 @@ export async function generatePlan(profile) {
     }
   }
 
+  // Priority signal injected from profile.prioritySignal — set at synthesis by parsePrioritySignal()
+  const prioritySignal = profile.prioritySignal;
+  if (prioritySignal) {
+    allocations.forEach(alloc => {
+      const layer = alloc.layer;
+      if (prioritySignal === 'debt_priority' && (layer === 'debt_floor' || layer === 'debt_accelerator')) {
+        alloc.note = (alloc.note ? alloc.note + ' ' : '') + 'You said getting out of debt matters most. This is where that starts.';
+      }
+      if (prioritySignal === 'savings_priority' && layer === 'stability') {
+        alloc.note = (alloc.note ? alloc.note + ' ' : '') + 'You said building a cushion matters most. This is that cushion.';
+      }
+      if (prioritySignal === 'retirement_priority' && layer?.startsWith('investment_')) {
+        alloc.note = (alloc.note ? alloc.note + ' ' : '') + 'You said retirement matters most. Every dollar here compounds.';
+      }
+      if (prioritySignal === 'housing_priority' && layer?.startsWith('fixed')) {
+        const housingPct = profile.netIncome > 0
+          ? Math.round((alloc.amount / toMonthly(profile.netIncome, profile.payFrequency)) * 100)
+          : 0;
+        if (housingPct > 30) {
+          alloc.note = (alloc.note ? alloc.note + ' ' : '') + `Housing is ${housingPct}% of income. Above 30% leaves less room to build.`;
+        }
+      }
+      if (prioritySignal === 'stress_priority' && layer === 'stability') {
+        alloc.note = (alloc.note ? alloc.note + ' ' : '') + 'Building this buffer is the single fastest way to reduce financial stress.';
+      }
+      if (prioritySignal === 'protection_priority' && layer?.startsWith('fixed')) {
+        alloc.note = (alloc.note ? alloc.note + ' ' : '') + 'Protecting your household starts here.';
+      }
+    });
+  }
+
   const structuralShortfall = fixedTotal + debtMinimums + totalRegular - netInc;
 
   return {
