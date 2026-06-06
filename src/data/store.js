@@ -270,6 +270,37 @@ export async function getCrisisById(id) {
   }
 }
 
+// ─── Essential actuals ─────────────────────────────────────────────────────────
+// Tracks what essentials actually cost in a given month vs. estimated.
+const ESSENTIAL_ACTUALS_PREFIX = 'steward_essential_actuals_';
+
+export async function getEssentialActuals(month) {
+  try {
+    const raw = await AsyncStorage.getItem(ESSENTIAL_ACTUALS_PREFIX + month);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+export async function saveEssentialActuals(month, data) {
+  try {
+    await AsyncStorage.setItem(ESSENTIAL_ACTUALS_PREFIX + month, JSON.stringify(data));
+  } catch {}
+}
+
+// ─── Last deploy date ───────────────────────────────────────────────────────────
+export async function getLastDeployDate() {
+  try {
+    const raw = await AsyncStorage.getItem('steward_last_deploy_date');
+    return raw || null;
+  } catch { return null; }
+}
+
+export async function saveLastDeployDate(date) {
+  try {
+    await AsyncStorage.setItem('steward_last_deploy_date', date);
+  } catch {}
+}
+
 // ─── Dev utility ───────────────────────────────────────────────────────────────
 export async function clearAll() {
   await AsyncStorage.clear();

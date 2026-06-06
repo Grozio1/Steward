@@ -12,8 +12,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
-import { getProfile, getPlan, savePlan, currentMonth, formatCurrency } from '../../data/store';
+import {
+  getProfile, getPlan, savePlan, currentMonth, formatCurrency,
+  getLastDeployDate, saveLastDeployDate, saveEssentialActuals,
+} from '../../data/store';
 import { generatePlan } from '../../ai/stub';
 import { Ionicons } from '@expo/vector-icons';
 import StewardText from '../../components/StewardText';
@@ -37,20 +41,27 @@ const SECTIONS = [
     key: 'life',
     label: 'LIFE BUCKETS',
     lockIcon: false,
-    match: (a) => a.layer === 'food' || a.layer === 'qol' || a.layer === 'adhoc',
+    match: (a) => a.layer === 'life' || a.layer === 'adhoc',
   },
 ];
 
 // ─── Layer config ────────────────────────────────────────────────────────────────
 const LAYER_META = {
-  fixed:            { locked: true,  color: COLORS.forest,    label: 'Fixed — auto-committed' },
-  debt_floor:       { locked: true,  color: COLORS.forest,    label: 'Debt minimums — floor' },
-  debt_accelerator: { locked: false, color: COLORS.ember,     label: 'Extra debt payoff' },
-  stability:        { locked: false, color: COLORS.ember,     label: 'Stability buffer' },
-  food:             { locked: false, color: COLORS.sage,      label: 'Active bucket' },
-  qol:              { locked: false, color: COLORS.sage,      label: 'Yours to spend' },
+  fixed:            { locked: true,  color: COLORS.forest,      label: 'Fixed — auto-committed' },
+  debt_floor:       { locked: true,  color: COLORS.forest,      label: 'Debt minimums — floor' },
+  debt_accelerator: { locked: false, color: COLORS.ember,       label: 'Extra debt payoff' },
+  stability:        { locked: false, color: COLORS.ember,       label: 'Stability buffer' },
+  life:             { locked: false, color: COLORS.sage,        label: 'Active bucket' },
   adhoc:            { locked: false, color: COLORS.placeholder, label: 'Surprises happen' },
 };
+
+// ─── Helper: previous month key (YYYY-MM) ────────────────────────────────────────
+function previousMonth() {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 
 // ─── Allocation row ───────────────────────────────────────────────────────────────
 function AllocationRow({ alloc, editing, onEdit, onAmountChange, onDone, confirmed }) {
@@ -123,24 +134,56 @@ function EmptyState({ onGenerate, loading }) {
 
 // ─── Main screen ──────────────────────────────────────────────────────────────────
 export default function DeployScreen() {
+  const navigation = useNavigation();
+
+  // Existing state
   const [profile, setProfile] = useState(null);
   const [plan, setPlan] = useState(null);
   const [allocations, setAllocations] = useState([]);
   const [editingIndex, setEditingIndex] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+
+  // Phase state
+  const [deployPhase, setDeployPhase] = useState('check');
+  const [lastDeployDate, setLastDeployDate] = useState(null);
+  const [lastMonthPlan, setLastMonthPlan] = useState(null);
+  const [reconcileActuals, setReconcileActuals] = useState({});
+
   const month = currentMonth();
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      Promise.all([getProfile(), getPlan(month)]).then(([p, pl]) => {
+      const prevMonth = previousMonth();
+      Promise.all([
+        getProfile(),
+        getPlan(month),
+        getLastDeployDate(),
+        getPlan(prevMonth),
+      ]).then(([p, pl, lastDate, prevPlan]) => {
         if (!active) return;
         setProfile(p);
+        setLastDeployDate(lastDate);
+        setLastMonthPlan(prevPlan);
+
         if (pl) {
           setPlan(pl);
           setAllocations(pl.allocations.map((a) => ({ ...a, _draft: String(a.amount) })));
           setConfirmed(true);
+          setDeployPhase('allocate');
+          return;
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+        const todayDay = new Date().getDate();
+        const payDay = parseInt(p?.nextPayDate);
+        const isPayDay = p?.nextPayDate && !isNaN(payDay) && todayDay === payDay;
+
+        if (isPayDay && lastDate !== today) {
+          setDeployPhase('check');
+        } else {
+          setDeployPhase('allocate');
         }
       });
       return () => { active = false; };
@@ -191,8 +234,28 @@ export default function DeployScreen() {
       allocations: allocations.map(({ _draft, ...rest }) => rest),
     };
     await savePlan(finalPlan, month);
+    await saveLastDeployDate(new Date().toISOString().split('T')[0]);
     setConfirmed(true);
+    setDeployPhase('confirmed');
     Alert.alert('Plan confirmed.', 'Your money knows where it\'s going.');
+  };
+
+  const reconcileItems = (lastMonthPlan?.allocations || []).filter(
+    (a) => a.layer === 'fixed' || a.layer === 'regular_expenses'
+  );
+
+  const handleReconcileSave = async () => {
+    const toSave = {};
+    for (const item of reconcileItems) {
+      const val = reconcileActuals[item.name];
+      if (val && Number(val) > 0) {
+        toSave[item.name] = Number(val);
+      }
+    }
+    if (Object.keys(toSave).length > 0) {
+      await saveEssentialActuals(month, toSave);
+    }
+    setDeployPhase('allocate');
   };
 
   // Totals
@@ -202,6 +265,103 @@ export default function DeployScreen() {
 
   const monthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+  // ─── PHASE: check ─────────────────────────────────────────────────────────────
+  if (deployPhase === 'check') {
+    return (
+      <SafeAreaView style={s.root} edges={['top', 'left', 'right']}>
+        <View style={s.phaseWrap}>
+          <StewardText style={s.phaseHeading}>Payday.</StewardText>
+          <StewardText style={s.phaseBody}>Did your paycheck arrive?</StewardText>
+          <TouchableOpacity
+            style={s.primaryBtn}
+            onPress={() => {
+              if (reconcileItems.length > 0) {
+                setDeployPhase('reconcile');
+              } else {
+                setDeployPhase('allocate');
+              }
+            }}
+            activeOpacity={0.85}
+          >
+            <StewardText style={s.primaryBtnLabel}>Yes, let's put it to work</StewardText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={s.outlineBtn}
+            onPress={() => navigation.navigate('Dashboard')}
+            activeOpacity={0.85}
+          >
+            <StewardText style={s.outlineBtnLabel}>Not yet — check back tomorrow</StewardText>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ─── PHASE: reconcile ─────────────────────────────────────────────────────────
+  if (deployPhase === 'reconcile') {
+    return (
+      <SafeAreaView style={s.root} edges={['top', 'left', 'right']}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={s.reconcileScroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <StewardText style={s.phaseHeading}>Before we look forward</StewardText>
+            <StewardText style={[s.phaseBody, { marginBottom: SPACING.lg }]}>
+              How did last month's essentials come in?
+            </StewardText>
+
+            {reconcileItems.map((item, i) => (
+              <StewardCard key={i} style={s.reconcileCard}>
+                <View style={s.reconcileRow}>
+                  <View style={{ flex: 1 }}>
+                    <StewardText style={s.reconcileName}>{item.name}</StewardText>
+                    <StewardText style={s.reconcileEstimate}>
+                      Estimated: {formatCurrency(item.amount)}
+                    </StewardText>
+                  </View>
+                  <View style={s.reconcileInputWrap}>
+                    <StewardText style={s.reconcileDollar}>$</StewardText>
+                    <TextInput
+                      style={s.reconcileInput}
+                      placeholder="Actual"
+                      placeholderTextColor={COLORS.placeholder}
+                      value={reconcileActuals[item.name] || ''}
+                      onChangeText={(t) => setReconcileActuals(prev => ({
+                        ...prev,
+                        [item.name]: t.replace(/[^0-9]/g, ''),
+                      }))}
+                      keyboardType="number-pad"
+                    />
+                  </View>
+                </View>
+              </StewardCard>
+            ))}
+
+            <TouchableOpacity
+              style={[s.primaryBtn, { marginTop: SPACING.lg }]}
+              onPress={handleReconcileSave}
+              activeOpacity={0.85}
+            >
+              <StewardText style={s.primaryBtnLabel}>Looks about right</StewardText>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={s.skipBtn}
+              onPress={() => setDeployPhase('allocate')}
+              activeOpacity={0.7}
+            >
+              <StewardText style={s.skipBtnLabel}>Skip for now</StewardText>
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // ─── PHASE: allocate | confirmed ─────────────────────────────────────────────
   return (
     <SafeAreaView style={s.root} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -333,6 +493,115 @@ export default function DeployScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.parchment },
+
+  // ─ Phase screens (check / reconcile) ─
+  phaseWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+    gap: SPACING.md,
+  },
+  phaseHeading: {
+    fontFamily: FONTS.serif.bold,
+    fontSize: SIZES.xxxl,
+    color: COLORS.hearth,
+    lineHeight: SIZES.xxxl * 1.2,
+    marginBottom: SPACING.xs,
+  },
+  phaseBody: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.md,
+    color: COLORS.placeholder,
+    lineHeight: SIZES.md * 1.6,
+    marginTop: SPACING.md,
+  },
+  primaryBtn: {
+    backgroundColor: COLORS.forest,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+    ...SHADOW.soft,
+  },
+  primaryBtnLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.base,
+    color: COLORS.white,
+    letterSpacing: 0.3,
+  },
+  outlineBtn: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.parchment,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+  },
+  outlineBtnLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.base,
+    color: COLORS.placeholder,
+    letterSpacing: 0.3,
+  },
+  skipBtn: {
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+  },
+  skipBtnLabel: {
+    fontFamily: FONTS.sans.light,
+    fontSize: SIZES.sm,
+    color: COLORS.placeholder,
+    textDecorationLine: 'underline',
+  },
+
+  // ─ Reconcile ─
+  reconcileScroll: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xxl,
+  },
+  reconcileCard: {
+    marginBottom: SPACING.sm,
+  },
+  reconcileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  reconcileName: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.base,
+    color: COLORS.hearth,
+  },
+  reconcileEstimate: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.xs,
+    color: COLORS.placeholder,
+    marginTop: 2,
+  },
+  reconcileInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    minWidth: 80,
+  },
+  reconcileDollar: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.base,
+    color: COLORS.placeholder,
+  },
+  reconcileInput: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.base,
+    color: COLORS.hearth,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.xs,
+    minWidth: 64,
+    textAlign: 'right',
+  },
+
+  // ─ Allocate / confirmed (existing) ─
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -368,7 +637,6 @@ const s = StyleSheet.create({
     color: COLORS.placeholder,
     letterSpacing: 0.3,
   },
-
   loadingWrap: {
     flex: 1,
     justifyContent: 'center',
@@ -380,7 +648,6 @@ const s = StyleSheet.create({
     fontSize: SIZES.base,
     color: COLORS.placeholder,
   },
-
   scroll: {
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.md,
@@ -410,7 +677,6 @@ const s = StyleSheet.create({
     backgroundColor: COLORS.white,
     opacity: 0.2,
   },
-
   instruction: {
     fontFamily: FONTS.sans.regular,
     fontSize: SIZES.sm,
@@ -427,7 +693,6 @@ const s = StyleSheet.create({
     color: COLORS.forest,
     lineHeight: SIZES.sm * 1.6,
   },
-
   sectionGroup: {
     marginBottom: SPACING.sm,
   },
@@ -443,7 +708,6 @@ const s = StyleSheet.create({
     color: COLORS.sage,
     letterSpacing: 1.2,
   },
-
   lockNoteRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -458,7 +722,6 @@ const s = StyleSheet.create({
     color: COLORS.placeholder,
     lineHeight: SIZES.xs * 1.6,
   },
-
   confirmBtn: {
     backgroundColor: COLORS.forest,
     borderRadius: RADIUS.md,

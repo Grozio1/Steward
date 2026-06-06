@@ -4,7 +4,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SPACING } from '../constants/brand';
-import { getActiveCrises } from '../data/store';
+import { getActiveCrises, getProfile } from '../data/store';
+
+const isPayDayToday = (profile) => {
+  if (!profile?.nextPayDate) return false;
+  const today = new Date().getDate();
+  const payDay = parseInt(profile.nextPayDate);
+  return !isNaN(payDay) && today === payDay;
+};
 
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import DeployScreen from '../screens/deploy/DeployScreen';
@@ -25,6 +32,7 @@ const TAB_ICONS = {
 
 function Tabs() {
   const [dueCount, setDueCount] = useState(0);
+  const [profile, setProfile] = useState(null);
 
   const checkDue = async () => {
     const crises = await getActiveCrises();
@@ -37,8 +45,12 @@ function Tabs() {
 
   useEffect(() => {
     checkDue();
+    getProfile().then(setProfile);
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') checkDue();
+      if (state === 'active') {
+        checkDue();
+        getProfile().then(setProfile);
+      }
     });
     return () => sub.remove();
   }, []);
@@ -51,10 +63,23 @@ function Tabs() {
         tabBarActiveTintColor: COLORS.forest,
         tabBarInactiveTintColor: COLORS.placeholder,
         tabBarLabelStyle: styles.tabLabel,
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarIcon: ({ focused, color }) => {
           const icons = TAB_ICONS[route.name];
           const iconName = focused ? icons.focused : icons.default;
-          return <Ionicons name={iconName} size={22} color={color} />;
+          const icon = <Ionicons name={iconName} size={22} color={color} />;
+          if (route.name === 'Deploy' && isPayDayToday(profile)) {
+            return (
+              <View style={{ position: 'relative' }}>
+                {icon}
+                <View style={{
+                  width: 8, height: 8, borderRadius: 4,
+                  backgroundColor: COLORS.ember,
+                  position: 'absolute', top: -2, right: -6,
+                }} />
+              </View>
+            );
+          }
+          return icon;
         },
       })}
     >

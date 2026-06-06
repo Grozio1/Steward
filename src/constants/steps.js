@@ -81,6 +81,13 @@ export const STEPS = [
     ],
   },
   {
+    id: 'nextPayDate',
+    prompt: "When does your next paycheck arrive?",
+    inputType: 'text',
+    placeholder: 'e.g. June 15 or the 1st and 15th',
+    key: 'nextPayDate',
+  },
+  {
     id: 'fixedCommitments',
     getMessage: () =>
       "Now the things that hit automatically — rent, utilities, insurance, subscriptions. Walk me through those.",
