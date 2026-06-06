@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
 import StewardText from '../../components/StewardText';
+import FlameIcon from '../../components/FlameIcon';
 
 export default function LandingScreen({ navigation }) {
   return (
@@ -13,11 +14,7 @@ export default function LandingScreen({ navigation }) {
 
       {/* Flame mark + wordmark */}
       <View style={s.markGroup}>
-        <Image
-          source={require('../../../assets/icon.png')}
-          style={s.mark}
-          resizeMode="contain"
-        />
+        <FlameIcon size={48} />
         <StewardText style={s.wordmark}>Steward</StewardText>
       </View>
 
@@ -58,15 +55,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.md,
   },
-  mark: {
-    width: 72,
-    height: 72,
-  },
   wordmark: {
     fontFamily: FONTS.serif.bold,
     fontSize: 42,
     color: COLORS.hearth,
     letterSpacing: 0.5,
+    marginTop: SPACING.md,
   },
 
   tagline: {
