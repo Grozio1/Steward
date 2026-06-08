@@ -258,8 +258,11 @@ export default function DeployScreen() {
     setDeployPhase('allocate');
   };
 
-  // Totals
-  const totalAllocated = allocations.reduce((s, a) => s + (a.amount || 0), 0);
+  // Totals — exclude payroll-deducted investment layers; that money never touched take-home.
+  const totalAllocated = allocations.reduce((s, a) => {
+    if (a.layer?.startsWith('investment_') && a.locked) return s;
+    return s + (a.amount || 0);
+  }, 0);
   const income = plan?.income || profile?.netIncome || 0;
   const unallocated = income - totalAllocated;
 
