@@ -100,7 +100,7 @@ export const STEPS = [
   },
   {
     id: 'nextPayDate',
-    prompt: "When does your next paycheck arrive?",
+    getMessage: () => "When does your next paycheck arrive?",
     inputType: 'text',
     placeholder: 'e.g. June 15 or the 1st and 15th',
     key: 'nextPayDate',
