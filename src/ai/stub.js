@@ -24,9 +24,13 @@ const STAGE_MIDPOINTS = {
 
 export function getAge(profile) {
   if (profile?.dateOfBirth) {
-    const dob = new Date(profile.dateOfBirth);
-    if (!isNaN(dob.getTime())) {
-      return Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+    const parts = profile.dateOfBirth.split('/');
+    if (parts.length === 3) {
+      const [month, day, year] = parts.map(Number);
+      const dob = new Date(year, month - 1, day);
+      if (!isNaN(dob.getTime())) {
+        return Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      }
     }
   }
   return STAGE_MIDPOINTS[profile?.lifeStageSignal] ?? 35;
