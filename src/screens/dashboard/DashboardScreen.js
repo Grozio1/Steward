@@ -1020,7 +1020,10 @@ export default function DashboardScreen({ navigation }) {
         {profile?.tier === 'pro' && profile?.investments?.length > 0 && (
           <TouchableOpacity
             style={styles.storyRow}
-            onPress={() => navigation.navigate('Retirement', { profile })}
+            onPress={async () => {
+              const fresh = await getProfile();
+              navigation.navigate('Retirement', { profile: fresh ?? profile });
+            }}
             activeOpacity={0.7}
           >
             <View style={{ flex: 1 }}>
