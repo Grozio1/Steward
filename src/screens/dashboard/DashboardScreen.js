@@ -1016,6 +1016,24 @@ export default function DashboardScreen({ navigation }) {
           </StewardCard>
         ) : null}
 
+        {/* Retirement outlook — Pro entry, shown when user has investments */}
+        {profile?.tier === 'pro' && profile?.investments?.length > 0 && (
+          <TouchableOpacity
+            style={styles.storyRow}
+            onPress={() => navigation.navigate('Retirement', { profile })}
+            activeOpacity={0.7}
+          >
+            <View style={{ flex: 1 }}>
+              <StewardText style={styles.storyLabel}>Retirement outlook</StewardText>
+              <StewardText style={styles.storyHint}>Trajectory · Social Security · Withdrawal</StewardText>
+            </View>
+            <View style={styles.proBadge}>
+              <StewardText style={styles.proLabel}>PRO</StewardText>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.placeholder} />
+          </TouchableOpacity>
+        )}
+
         {/* Active crisis awareness */}
         {activeCrises.map((crisis) => {
           const daysIn = Math.floor((Date.now() - new Date(crisis.startDate)) / 86400000);

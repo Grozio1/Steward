@@ -366,6 +366,21 @@ export default function BiographyScreen({ route, navigation }) {
             <Ionicons name="chevron-forward" size={16} color={COLORS.sage} />
           </TouchableOpacity>
 
+          {/* Retirement outlook entry — Pro only */}
+          <TouchableOpacity
+            style={s.benchmarkRow}
+            onPress={() => navigation.navigate('Retirement', { profile })}
+            activeOpacity={0.8}
+          >
+            <View style={{ flex: 1 }}>
+              <StewardText variant="bodyMedium">Retirement outlook</StewardText>
+              <StewardText variant="caption" style={{ marginTop: 2, color: COLORS.sage }}>
+                Trajectory, Social Security, and withdrawal modeling
+              </StewardText>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.sage} />
+          </TouchableOpacity>
+
           {/* Vertical timeline */}
           <View style={s.timeline}>
             {timelineItems.map((item, i) => {

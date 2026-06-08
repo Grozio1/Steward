@@ -19,6 +19,7 @@ import DecideScreen from '../screens/decide/DecideScreen';
 import NavigateScreen from '../screens/navigate/NavigateScreen';
 import BiographyScreen from '../screens/biography/BiographyScreen';
 import PeerBenchmarkScreen from '../screens/benchmark/PeerBenchmarkScreen';
+import RetirementScreen from '../screens/retirement/RetirementScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -106,6 +107,11 @@ export default function MainNavigator() {
       <Stack.Screen
         name="Biography"
         component={BiographyScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="Retirement"
+        component={RetirementScreen}
         options={{ animation: 'slide_from_right' }}
       />
     </Stack.Navigator>
