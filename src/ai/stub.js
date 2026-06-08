@@ -178,6 +178,7 @@ export async function generatePlan(profile) {
       note,
       investmentId: inv.id,
       investmentType: inv.type,
+      locked: !!inv.payrollDeducted,
     });
     if (!inv.payrollDeducted) {
       remaining -= monthly;

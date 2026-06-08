@@ -915,13 +915,15 @@ export default function DashboardScreen({ navigation }) {
 
   // Consolidated bar groups
   const essentialsLayers = plan?.allocations?.filter(a =>
-    a.layer?.startsWith('fixed') || a.layer === 'regular_expenses'
+    a.layer?.startsWith('fixed') || a.layer === 'regular_expenses' ||
+    (a.layer?.startsWith('investment_') && a.locked)
   ) || [];
   const debtLayers = plan?.allocations?.filter(a =>
     a.layer === 'debt_floor' || a.layer === 'debt_accelerator'
   ) || [];
   const goalsLayers = plan?.allocations?.filter(a =>
-    a.layer === 'stability' || a.layer?.startsWith('goal_') || a.layer?.startsWith('investment_')
+    a.layer === 'stability' || a.layer?.startsWith('goal_') ||
+    (a.layer?.startsWith('investment_') && !a.locked)
   ) || [];
   const lifeLayers = plan?.allocations?.filter(a =>
     a.layer === 'life' || a.layer === 'adhoc' || a.layer?.startsWith('qol')
@@ -1017,7 +1019,7 @@ export default function DashboardScreen({ navigation }) {
         ) : null}
 
         {/* Retirement outlook — Pro entry, shown when user has investments */}
-        {profile?.tier === 'pro' && profile?.investments?.length > 0 && (
+        {/* TODO: restore Pro gate before launch */ profile?.investments?.length > 0 && (
           <TouchableOpacity
             style={styles.storyRow}
             onPress={async () => {
@@ -1068,7 +1070,7 @@ export default function DashboardScreen({ navigation }) {
         })}
 
         {/* Your story — Pro tier entry point */}
-        {profile?.tier === 'pro' && (
+        {/* TODO: restore Pro gate before launch */ true && (
           <TouchableOpacity
             style={styles.storyRow}
             onPress={() => navigation.navigate('Biography', { profile })}
