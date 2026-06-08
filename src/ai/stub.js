@@ -270,7 +270,6 @@ export async function generatePlan(profile) {
 
   if (goalObservations.length > 0) {
     const stabilityLayer = allocations.find((a) => a.layer === 'stability');
-    const adhocLayer     = allocations.find((a) => a.layer === 'adhoc');
 
     for (const goal of goalObservations) {
       const target = (goal.layer === 'stability' && stabilityLayer) ? stabilityLayer : null;
