@@ -63,13 +63,17 @@ export async function getDailyObservation(profile, context = {}) {
 
     // Birthday check
     if (profile?.dateOfBirth) {
-      const dob = new Date(profile.dateOfBirth);
-      if (!isNaN(dob.getTime())) {
-        const diff = annualDaysDiff(dob.getMonth(), dob.getDate());
-        if (Math.abs(diff) <= 7) {
-          const today = new Date();
-          const age = today.getFullYear() - dob.getFullYear() + (diff <= 0 ? 0 : -1);
-          parts.push(`Birthday: turning ${age + 1} ${diff > 0 ? `in ${diff} day${diff !== 1 ? 's' : ''}` : diff === 0 ? 'today' : 'just passed'}`);
+      const dobParts = profile.dateOfBirth.split('/');
+      if (dobParts.length === 3) {
+        const [m, d, y] = dobParts.map(Number);
+        const dob = new Date(y, m - 1, d);
+        if (!isNaN(dob.getTime())) {
+          const diff = annualDaysDiff(dob.getMonth(), dob.getDate());
+          if (Math.abs(diff) <= 7) {
+            const today = new Date();
+            const age = today.getFullYear() - dob.getFullYear() + (diff <= 0 ? 0 : -1);
+            parts.push(`Birthday: turning ${age + 1} ${diff > 0 ? `in ${diff} day${diff !== 1 ? 's' : ''}` : diff === 0 ? 'today' : 'just passed'}`);
+          }
         }
       }
     }
