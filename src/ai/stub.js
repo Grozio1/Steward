@@ -248,7 +248,7 @@ export async function generatePlan(profile) {
     name: 'Ad hoc',
     amount: 0,
     spent: 0,
-    note: 'Some months have surprises. This is where they go.',
+    note: 'Catch-all for surprises.',
   });
 
   // Surface required goal observations on plan layers.
@@ -273,7 +273,7 @@ export async function generatePlan(profile) {
     const adhocLayer     = allocations.find((a) => a.layer === 'adhoc');
 
     for (const goal of goalObservations) {
-      const target = (goal.layer === 'stability' && stabilityLayer) ? stabilityLayer : adhocLayer;
+      const target = (goal.layer === 'stability' && stabilityLayer) ? stabilityLayer : null;
       if (target) {
         target.note = target.note ? `${target.note}\n${goal.note}` : goal.note;
       }
