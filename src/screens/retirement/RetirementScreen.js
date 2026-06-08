@@ -532,13 +532,13 @@ function WithdrawalTab({ profile, monthlyIncome }) {
 // ─── Main screen ───────────────────────────────────────────────────────────────
 
 export default function RetirementScreen({ route, navigation }) {
-  const [profile,   setProfile]   = useState(route.params?.profile ?? null);
-  const [loading,   setLoading]   = useState(!route.params?.profile);
+  const [profile,   setProfile]   = useState(null);
+  const [loading,   setLoading]   = useState(true);
   const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
     getProfile().then(p => {
-      if (p) setProfile(p);
+      setProfile(p ?? route.params?.profile ?? null);
       setLoading(false);
     });
   }, []);
