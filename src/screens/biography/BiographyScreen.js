@@ -366,21 +366,6 @@ export default function BiographyScreen({ route, navigation }) {
             <Ionicons name="chevron-forward" size={16} color={COLORS.sage} />
           </TouchableOpacity>
 
-          {/* Retirement outlook entry — Pro only */}
-          <TouchableOpacity
-            style={s.benchmarkRow}
-            onPress={() => navigation.navigate('Retirement', { profile })}
-            activeOpacity={0.8}
-          >
-            <View style={{ flex: 1 }}>
-              <StewardText variant="bodyMedium">Retirement outlook</StewardText>
-              <StewardText variant="caption" style={{ marginTop: 2, color: COLORS.sage }}>
-                Trajectory, Social Security, and withdrawal modeling
-              </StewardText>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.sage} />
-          </TouchableOpacity>
-
           {/* Vertical timeline */}
           <View style={s.timeline}>
             {timelineItems.map((item, i) => {
@@ -406,6 +391,26 @@ export default function BiographyScreen({ route, navigation }) {
             })}
             <StartedMarker date={bio.startDate} />
           </View>
+
+          {/* Retirement Outlook card — bottom of screen, above footer */}
+          {/* TODO: add tier gate when tier field is consistently populated */}
+          {(!profile?.tier || profile?.tier === 'pro' || profile?.tier === 'family') && (
+            <StewardCard variant="parchment" style={s.retirementCard}>
+              <StewardText variant="label" style={{ marginBottom: SPACING.xs }}>
+                RETIREMENT OUTLOOK
+              </StewardText>
+              <StewardText variant="body" style={{ marginBottom: SPACING.md }}>
+                Trajectory, Social Security timing, and withdrawal planning.
+              </StewardText>
+              <TouchableOpacity
+                style={s.retirementBtn}
+                onPress={() => navigation.navigate('Retirement', { profile })}
+                activeOpacity={0.8}
+              >
+                <StewardText style={s.retirementBtnLabel}>View</StewardText>
+              </TouchableOpacity>
+            </StewardCard>
+          )}
 
           <View style={{ height: 48 }} />
         </ScrollView>
@@ -495,6 +500,20 @@ const s = StyleSheet.create({
   },
   timeline: {
     paddingLeft: SPACING.xs,
+  },
+  retirementCard: {
+    marginTop: SPACING.md,
+  },
+  retirementBtn: {
+    backgroundColor: COLORS.forest,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm + 2,
+    alignItems: 'center',
+  },
+  retirementBtnLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.base,
+    color: COLORS.white,
   },
 });
 
