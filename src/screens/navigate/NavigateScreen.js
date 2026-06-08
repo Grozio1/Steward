@@ -19,21 +19,83 @@ import { generateCrisisResponse } from '../../ai/claude';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 
-// ─── Life events ─────────────────────────────────────────────────────────────────
-const EVENTS = [
+// ─── Life milestones (forward-looking, saved as milestone, no active crisis) ────
+const LIFE_EVENTS = [
+  { id: 'new_baby',      label: 'New baby' },
+  { id: 'career_change', label: 'Career change' },
+  { id: 'new_home',      label: 'New home' },
+  { id: 'marriage',      label: 'Got married' },
+  { id: 'job_promotion', label: 'New job or promotion' },
+  { id: 'retire_start',  label: 'Starting retirement' },
+];
+
+// ─── Crisis events (acknowledgment-first, creates active crisis) ─────────────
+const CRISIS_EVENTS = [
   { id: 'job_loss',          label: 'Job loss' },
   { id: 'divorce',           label: 'Divorce or separation' },
-  { id: 'new_baby',          label: 'New baby' },
-  { id: 'career_change',     label: 'Career change' },
   { id: 'loss_spouse',       label: 'Loss of a spouse' },
   { id: 'medical',           label: 'Medical emergency' },
   { id: 'financial_stress',  label: 'Expenses exceed income' },
   { id: 'other',             label: 'Something else' },
 ];
 
-// ─── Stub response generator ─────────────────────────────────────────────────────
-// Voice: grandparent — warm, plain, direct. Never starts with numbers.
-function generateResponse({ eventId, context, profile, plan }) {
+const ALL_EVENTS = [...LIFE_EVENTS, ...CRISIS_EVENTS];
+const LIFE_EVENT_IDS = new Set(LIFE_EVENTS.map(e => e.id));
+
+// ─── Milestone response generator ────────────────────────────────────────────
+function generateMilestoneResponse({ eventId, profile }) {
+  const name = profile?.name || '';
+
+  const acknowledgments = {
+    new_baby: `${name ? name + ', welcoming' : 'Welcoming'} a new baby is one of the biggest changes a household goes through. It's also completely manageable when you plan for it. Let's make sure you're set up.`,
+    career_change: `${name ? name + ', a' : 'A'} career change is a real milestone. Whether it's more money, more meaning, or both — this is a good time to make sure your financial plan moves with you.`,
+    new_home: `${name ? name + ', buying' : 'Buying'} a home changes your whole financial picture. Let's make sure the rest of your plan still fits around it.`,
+    marriage: `${name ? name + ', getting' : 'Getting'} married means your financial life is no longer just yours. Getting aligned early makes everything that follows easier.`,
+    job_promotion: `${name ? name + ', a' : 'A'} new job or promotion is exactly the right moment to make sure your money keeps pace with your progress.`,
+    retire_start: `${name ? name + ', this' : 'This'} is what all of it was building toward. Let's make sure you have a clear picture of what you have to work with.`,
+  };
+
+  const considerations = {
+    new_baby: [
+      'Add the baby to your health insurance within 30 days — most plans require it.',
+      'Get a realistic monthly childcare estimate into your Deploy plan.',
+      'If you plan to use a 529 for education, starting early compounds significantly.',
+    ],
+    career_change: [
+      'Confirm how benefits (health coverage, 401k) transfer between employers.',
+      'Any income gap — even a few weeks — should be covered by savings, not credit.',
+      'A salary change is a reason to revisit your plan from the top.',
+    ],
+    new_home: [
+      'Update your fixed commitments to reflect actual housing costs.',
+      'A home maintenance reserve of roughly 1% of home value per year prevents surprises.',
+      'Your emergency fund target increases when you carry a mortgage.',
+    ],
+    marriage: [
+      'Decide how you\'ll handle joint vs. separate finances — have the conversation explicitly.',
+      'Combined income changes what\'s possible for debt payoff and savings.',
+      'Update beneficiary designations on retirement accounts and insurance.',
+    ],
+    job_promotion: [
+      'Increase retirement contributions before lifestyle spending catches up.',
+      'A higher salary raises your emergency fund target.',
+      'Update your profile income so your plan reflects the new baseline.',
+    ],
+    retire_start: [
+      'Understand your income sources: Social Security, pension, portfolio distributions.',
+      'Sequence of withdrawals matters for taxes — the Retirement screen has a full breakdown.',
+      'Watch for the shift from accumulation to distribution — it changes how you think about risk.',
+    ],
+  };
+
+  return {
+    acknowledgment: acknowledgments[eventId] || `${name ? name + ', this' : 'This'} is a meaningful moment. Let's make sure your finances are aligned with where you're headed.`,
+    considerations: considerations[eventId] || ['Update your profile to reflect the change.', 'Review your plan to ensure it still fits.'],
+  };
+}
+
+// ─── Crisis stub response generator ─────────────────────────────────────────────
+function generateCrisisStubResponse({ eventId, context, profile, plan }) {
   const name = profile?.name || '';
   const savings = Number(profile?.savings) || 0;
   const income = plan?.income || toMonthly(profile?.netIncome, profile?.payFrequency);
@@ -42,76 +104,56 @@ function generateResponse({ eventId, context, profile, plan }) {
   const monthlyObligations = fixedTotal + debtMin;
   const runway = monthlyObligations > 0 ? Math.floor(savings / monthlyObligations) : null;
 
-  // Flexible commitments = anything not debt
   const flexible = (profile?.fixedCommitments || []).filter((c) =>
     !['rent', 'mortgage'].some((k) => c.name?.toLowerCase().includes(k))
   );
 
-  // Acknowledgment — event-specific, human, no numbers
   const acknowledgments = {
     job_loss: `${name ? name + ', losing' : 'Losing'} your job is one of the harder things to sit with. The uncertainty is real. But you have more to work with than it might feel like right now, and we're going to look at it together.`,
     divorce: `${name ? name + ', this' : 'This'} is a lot to carry. When a household splits, everything has to be rethought — and that's exhausting. Let's take it one piece at a time and figure out what stability looks like from here.`,
-    new_baby: `A new baby changes everything about how money moves through your life. That's not a problem — it's just a new set of priorities to get right. Let's make sure you're set up for it.`,
-    career_change: `Changing direction takes courage, and it usually means a transition period of uncertainty. That's manageable. Let's look at what your situation can actually absorb.`,
     loss_spouse: `${name ? name + ', I' : 'I'}'m sorry. There's no right way to navigate this kind of loss. When you're ready, I'm here to help you make sure the financial side of things doesn't add to what you're already carrying.`,
     medical: `A medical emergency puts everything else on hold. Let's make sure you know exactly where you stand and what can wait — so you can focus on what matters most right now.`,
     financial_stress: `${name ? name + ', this' : 'This'} is a structural problem, not a willpower problem. When committed expenses outrun income, habits won't fix it — the structure has to change. Let's figure out where the room is.`,
     other: `${name ? name + ', something' : 'Something'} changed. That's what this is here for. Let's look at what you have and figure out what the right next step is.`,
   };
 
-  const acknowledgment = acknowledgments[eventId] || acknowledgments.other;
-
-  // First action — event-specific
   const firstActions = {
     job_loss: 'File for unemployment benefits today if you haven\'t. That clock starts when you file, not when you lost the job.',
     divorce: 'Separate any joint accounts and establish your own within the next two weeks. Clarity on what\'s yours is the first step.',
-    new_baby: 'Add the baby to your health insurance within 30 days — most plans require it. After that, look at your monthly budget.',
-    career_change: 'Give yourself a written transition timeline — start date, expected first paycheck, gap in weeks. That number drives everything else.',
     loss_spouse: 'Contact your bank and any joint account holders to protect access. Only when you\'re ready.',
     medical: 'Request an itemized bill from the hospital before paying anything. Errors are common and bills are often negotiable.',
     financial_stress: 'List every fixed commitment and its monthly amount. Decide which ones are truly non-negotiable and which ones have any give — even a little. That list is where the work starts.',
     other: 'Write down the one thing that feels most urgent right now. That\'s where we start.',
   };
 
-  const firstAction = firstActions[eventId] || firstActions.other;
-
-  // Recovery arc steps
   const recoverySteps = [];
-
-  if (eventId === 'job_loss' || eventId === 'career_change') {
+  if (eventId === 'job_loss') {
     recoverySteps.push(
-      { week: 'Now', label: 'Cover obligations', detail: `${formatCurrency(monthlyObligations)}/mo in fixed costs. Savings gives you ${runway !== null ? `${runway} months of runway` : 'a cushion'}.` },
+      { week: 'Now',      label: 'Cover obligations', detail: `${formatCurrency(monthlyObligations)}/mo in fixed costs. Savings gives you ${runway !== null ? `${runway} months of runway` : 'a cushion'}.` },
       { week: 'Weeks 1–2', label: 'Cut discretionary', detail: 'Pause Quality of life and Ad hoc spending until income resumes.' },
-      { week: 'Month 1', label: 'Stabilize', detail: 'Income replacement (job, freelance, benefits) covers obligations. Stop the bleed.' },
-      { week: 'Month 2+', label: 'Rebuild', detail: 'Once income is steady, restore normal allocation and replenish savings.' },
-    );
-  } else if (eventId === 'new_baby') {
-    recoverySteps.push(
-      { week: 'Now', label: 'Insurance + essentials', detail: 'Add baby to health plan. Identify first 3 months of baby costs.' },
-      { week: 'Month 1', label: 'Adjust the plan', detail: 'Rebuild your Deploy plan with new expenses accounted for.' },
-      { week: 'Months 2–3', label: 'Find the flex', detail: 'Quality of life spending usually finds its own level. Watch it for 60 days.' },
-      { week: 'Month 4+', label: 'New normal', detail: 'You\'ll know your new baseline by now. Lock it in.' },
+      { week: 'Month 1',  label: 'Stabilize',          detail: 'Income replacement (job, freelance, benefits) covers obligations. Stop the bleed.' },
+      { week: 'Month 2+', label: 'Rebuild',            detail: 'Once income is steady, restore normal allocation and replenish savings.' },
     );
   } else if (eventId === 'financial_stress') {
     const gap = plan?.shortfall ?? Math.max(0, monthlyObligations - income);
     recoverySteps.push(
-      { week: 'Now', label: 'Map the gap', detail: `Committed expenses exceed income by ${formatCurrency(gap)}. Know that number exactly — it's what needs to close.` },
+      { week: 'Now',      label: 'Map the gap',  detail: `Committed expenses exceed income by ${formatCurrency(gap)}. Know that number exactly.` },
       { week: 'Week 1–2', label: 'Find the flex', detail: 'Every fixed line item gets reviewed. Some are truly fixed. Some aren\'t.' },
-      { week: 'Month 1', label: 'Restructure', detail: 'Negotiate, downsize, or eliminate at least one line item. One change changes the math.' },
-      { week: 'Month 2+', label: 'Rebuild', detail: 'Once obligations fit income, the plan can be built the way it\'s supposed to work.' },
+      { week: 'Month 1',  label: 'Restructure',  detail: 'Negotiate, downsize, or eliminate at least one line item. One change changes the math.' },
+      { week: 'Month 2+', label: 'Rebuild',       detail: 'Once obligations fit income, the plan can be built the way it\'s supposed to work.' },
     );
   } else {
     recoverySteps.push(
-      { week: 'Now', label: 'Protect the floor', detail: `Fixed costs and debt minimums — ${formatCurrency(monthlyObligations)}/mo — come first, always.` },
-      { week: 'Week 1–2', label: 'Assess', detail: 'Know exactly what you have. Then decide what can wait.' },
-      { week: 'Month 1', label: 'Stabilize', detail: 'One month of covering obligations without adding debt is a win.' },
-      { week: 'Month 2+', label: 'Recover', detail: 'Once stable, start rebuilding the buffer. One step at a time.' },
+      { week: 'Now',      label: 'Protect the floor', detail: `Fixed costs and debt minimums — ${formatCurrency(monthlyObligations)}/mo — come first, always.` },
+      { week: 'Week 1–2', label: 'Assess',            detail: 'Know exactly what you have. Then decide what can wait.' },
+      { week: 'Month 1',  label: 'Stabilize',         detail: 'One month of covering obligations without adding debt is a win.' },
+      { week: 'Month 2+', label: 'Recover',           detail: 'Once stable, start rebuilding the buffer. One step at a time.' },
     );
   }
 
   return {
-    acknowledgment,
-    firstAction,
+    acknowledgment: acknowledgments[eventId] || acknowledgments.other,
+    firstAction: firstActions[eventId] || firstActions.other,
     savings,
     income,
     monthlyObligations,
@@ -121,10 +163,7 @@ function generateResponse({ eventId, context, profile, plan }) {
   };
 }
 
-// ─── Parse raw API crisis response into the existing response shape ───────────────
-// Inventory (income, savings, obligations, runway, flexible) is computed from
-// profile data so the structured WHAT YOU HAVE card always shows accurate numbers.
-// Acknowledgment, firstAction, and recoverySteps come from the API text.
+// ─── Parse raw API crisis response ──────────────────────────────────────────────
 function parseCrisisResponse(text, profile, plan) {
   const savings = Number(profile?.savings) || 0;
   const income = plan?.income || toMonthly(profile?.netIncome, profile?.payFrequency);
@@ -138,18 +177,15 @@ function parseCrisisResponse(text, profile, plan) {
     (c) => !['rent', 'mortgage'].some((k) => c.name?.toLowerCase().includes(k))
   );
 
-  // Locate section headers (case-insensitive)
   const wyhIdx = text.search(/WHAT YOU HAVE/i);
   const dtfIdx = text.search(/DO THIS FIRST/i);
   const raIdx  = text.search(/RECOVERY ARC/i);
 
-  // Acknowledgment: everything before the first section header
   const firstHeader = [wyhIdx, dtfIdx, raIdx].filter((i) => i >= 0).sort((a, b) => a - b)[0] ?? text.length;
   const acknowledgment = text.slice(0, firstHeader)
     .replace(/^[#*]+\s*/gm, '')
     .trim() || `Something changed. Let's look at what you have and figure out the right next step.`;
 
-  // DO THIS FIRST — text between its header and RECOVERY ARC (or end)
   let firstAction = "Write down the one thing that feels most urgent right now. That's where we start.";
   if (dtfIdx >= 0) {
     const afterDtf = text.slice(dtfIdx + 'DO THIS FIRST'.length);
@@ -161,13 +197,11 @@ function parseCrisisResponse(text, profile, plan) {
     if (parsed) firstAction = parsed;
   }
 
-  // RECOVERY ARC — parse step lines into { week, label, detail }
   let recoverySteps = [];
   if (raIdx >= 0) {
     const arcText = text.slice(raIdx + 'RECOVERY ARC'.length);
     const tfRe = /^[-*•\d.]\s*(Now|(?:Week|Month|Day)s?\s+[\d–\-+]+)/i;
     let current = null;
-
     for (const raw of arcText.split('\n')) {
       const line = raw.trim();
       if (!line) continue;
@@ -196,7 +230,6 @@ function parseCrisisResponse(text, profile, plan) {
     if (current) recoverySteps.push(current);
   }
 
-  // Fallback if parsing yielded too few steps
   if (recoverySteps.length < 2) {
     recoverySteps = [
       { week: 'Now',      label: 'Protect the floor', detail: `Fixed costs and debt minimums — ${formatCurrency(monthlyObligations)}/mo — come first, always.` },
@@ -312,6 +345,7 @@ export default function NavigateScreen({ route }) {
   const [context, setContext] = useState('');
   const [thinking, setThinking] = useState(false);
   const [response, setResponse] = useState(null);
+  const [responseType, setResponseType] = useState(null); // 'milestone' | 'crisis'
   const [activeCrises, setActiveCrises] = useState([]);
 
   useEffect(() => {
@@ -319,8 +353,8 @@ export default function NavigateScreen({ route }) {
     if (!prefill) return;
     getActiveCrises().then((crises) => {
       const existing = crises.find((c) => c.eventType === prefill);
-      if (existing) return; // active crisis already tracked — ACTIVE SITUATIONS will surface it
-      const match = EVENTS.find((e) => e.id === prefill);
+      if (existing) return;
+      const match = ALL_EVENTS.find((e) => e.id === prefill);
       if (match) {
         setSelectedEvent(match);
         setContext('My fixed expenses exceed my income. I need a recovery strategy.');
@@ -337,7 +371,6 @@ export default function NavigateScreen({ route }) {
         setProfile(p);
         setPlan(pl);
         setActiveCrises(crises);
-        console.log('[NavigateScreen] activeCrises:', crises.length, crises.map(c => c.eventType));
       });
       return () => { active = false; };
     }, [])
@@ -348,34 +381,46 @@ export default function NavigateScreen({ route }) {
     setThinking(true);
     setResponse(null);
 
-    let result;
-    if (selectedEvent.id === 'other') {
-      try {
-        const rawText = await generateCrisisResponse(context, profile);
-        result = parseCrisisResponse(rawText, profile, plan);
-      } catch {
-        result = generateResponse({ eventId: 'other', context, profile, plan });
-      }
+    const isLifeEvent = LIFE_EVENT_IDS.has(selectedEvent.id);
+
+    if (isLifeEvent) {
+      // Milestone path — no API call, no active crisis
+      const result = generateMilestoneResponse({ eventId: selectedEvent.id, profile });
+      setResponse(result);
+      setResponseType('milestone');
+      saveLifeEvent({ event: selectedEvent.label, notes: context || null, type: 'milestone' });
     } else {
-      await new Promise((r) => setTimeout(r, 900));
-      result = generateResponse({ eventId: selectedEvent.id, context, profile, plan });
+      // Crisis path — acknowledgment-first, API for 'other', creates active crisis
+      let result;
+      if (selectedEvent.id === 'other') {
+        try {
+          const rawText = await generateCrisisResponse(context, profile);
+          result = parseCrisisResponse(rawText, profile, plan);
+        } catch {
+          result = generateCrisisStubResponse({ eventId: 'other', context, profile, plan });
+        }
+      } else {
+        await new Promise((r) => setTimeout(r, 900));
+        result = generateCrisisStubResponse({ eventId: selectedEvent.id, context, profile, plan });
+      }
+      setResponse(result);
+      setResponseType('crisis');
+      saveLifeEvent({ event: selectedEvent.label, notes: context || null, type: 'crisis' });
+      const model = CRISIS_MODELS[selectedEvent.id] ?? CRISIS_MODELS.other;
+      saveCrisis({
+        id: 'crisis_' + Date.now(),
+        eventType: selectedEvent.id,
+        eventLabel: selectedEvent.label,
+        startDate: new Date().toISOString(),
+        status: 'active',
+        resolvedDate: null,
+        lastCheckedIn: null,
+        notes: [],
+        resolutionModel: model.resolutionModel,
+        checkInDays: model.checkInDays,
+      });
     }
 
-    setResponse(result);
-    saveLifeEvent({ event: selectedEvent.label, notes: context });
-    const model = CRISIS_MODELS[selectedEvent.id] ?? CRISIS_MODELS.other;
-    saveCrisis({
-      id: 'crisis_' + Date.now(),
-      eventType: selectedEvent.id,
-      eventLabel: selectedEvent.label,
-      startDate: new Date().toISOString(),
-      status: 'active',
-      resolvedDate: null,
-      lastCheckedIn: null,
-      notes: [],
-      resolutionModel: model.resolutionModel,
-      checkInDays: model.checkInDays,
-    });
     setThinking(false);
   };
 
@@ -383,6 +428,7 @@ export default function NavigateScreen({ route }) {
     setSelectedEvent(null);
     setContext('');
     setResponse(null);
+    setResponseType(null);
   };
 
   const handleCheckIn = async (crisis, newStatus, note) => {
@@ -438,19 +484,37 @@ export default function NavigateScreen({ route }) {
               )}
 
               <StewardText style={s.prompt}>
-                Something changed. Tell me what happened.
+                Something happened. Tell me what.
               </StewardText>
 
-              {/* Event grid */}
-              <View style={s.eventGrid}>
-                {EVENTS.map((e) => (
+              {/* Life milestones section */}
+              <StewardText style={s.sectionLabel}>LIFE MILESTONES</StewardText>
+              <View style={s.eventList}>
+                {LIFE_EVENTS.map((e) => (
                   <TouchableOpacity
                     key={e.id}
-                    style={[s.eventBtn, selectedEvent?.id === e.id && s.eventBtnActive]}
+                    style={[s.lifeEventBtn, selectedEvent?.id === e.id && s.lifeEventBtnActive]}
                     onPress={() => setSelectedEvent(e)}
                     activeOpacity={0.7}
                   >
-                    <StewardText style={[s.eventLabel, selectedEvent?.id === e.id && s.eventLabelActive]}>
+                    <StewardText style={[s.eventBtnLabel, selectedEvent?.id === e.id && s.lifeEventBtnLabelActive]}>
+                      {e.label}
+                    </StewardText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Crisis section */}
+              <StewardText style={[s.sectionLabel, { marginTop: SPACING.md }]}>CRISIS & HARDSHIP</StewardText>
+              <View style={s.eventList}>
+                {CRISIS_EVENTS.map((e) => (
+                  <TouchableOpacity
+                    key={e.id}
+                    style={[s.crisisEventBtn, selectedEvent?.id === e.id && s.crisisEventBtnActive]}
+                    onPress={() => setSelectedEvent(e)}
+                    activeOpacity={0.7}
+                  >
+                    <StewardText style={[s.eventBtnLabel, selectedEvent?.id === e.id && s.crisisEventBtnLabelActive]}>
                       {e.label}
                     </StewardText>
                   </TouchableOpacity>
@@ -483,23 +547,59 @@ export default function NavigateScreen({ route }) {
                 {thinking ? (
                   <ActivityIndicator color={COLORS.white} size="small" />
                 ) : (
-                  <StewardText style={s.goBtnLabel}>Let's figure this out</StewardText>
+                  <StewardText style={s.goBtnLabel}>
+                    {selectedEvent && LIFE_EVENT_IDS.has(selectedEvent.id)
+                      ? 'Save to your story'
+                      : 'Let\'s figure this out'}
+                  </StewardText>
                 )}
               </TouchableOpacity>
             </>
-          ) : (
+          ) : responseType === 'milestone' ? (
             <>
-              {/* Event tag */}
+              {/* Milestone response */}
               <View style={s.eventTag}>
-                <StewardText style={s.eventTagLabel}>{selectedEvent.label.toUpperCase()}</StewardText>
+                <StewardText style={[s.eventTagLabel, { color: COLORS.forest }]}>
+                  {selectedEvent.label.toUpperCase()}
+                </StewardText>
               </View>
 
-              {/* Acknowledgment — always first, never numbers */}
               <StewardCard variant="parchment" style={s.ackCard}>
                 <StewardText style={s.ackText}>{response.acknowledgment}</StewardText>
               </StewardCard>
 
-              {/* What you have */}
+              <StewardText style={s.sectionLabel}>WHAT TO LOOK AT</StewardText>
+              <StewardCard style={s.considerCard}>
+                {response.considerations.map((c, i) => (
+                  <View key={i} style={[s.considerRow, i > 0 && { marginTop: SPACING.sm, paddingTop: SPACING.sm, borderTopWidth: 1, borderTopColor: COLORS.border }]}>
+                    <View style={s.considerDot} />
+                    <StewardText style={s.considerText}>{c}</StewardText>
+                  </View>
+                ))}
+              </StewardCard>
+
+              <StewardCard variant="outlined" style={s.savedCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+                  <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.forest} />
+                  <StewardText variant="caption" style={{ color: COLORS.forest }}>Saved to your story.</StewardText>
+                </View>
+              </StewardCard>
+
+              <TouchableOpacity style={s.resetBtn} onPress={reset}>
+                <StewardText style={s.resetLabel}>Back</StewardText>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {/* Crisis response */}
+              <View style={s.eventTag}>
+                <StewardText style={s.eventTagLabel}>{selectedEvent.label.toUpperCase()}</StewardText>
+              </View>
+
+              <StewardCard variant="parchment" style={s.ackCard}>
+                <StewardText style={s.ackText}>{response.acknowledgment}</StewardText>
+              </StewardCard>
+
               <StewardText style={s.sectionLabel}>WHAT YOU HAVE</StewardText>
               <StewardCard style={s.inventoryCard}>
                 <View style={s.inventoryRow}>
@@ -524,7 +624,6 @@ export default function NavigateScreen({ route }) {
                 )}
               </StewardCard>
 
-              {/* What's flexible */}
               {response.flexible.length > 0 && (
                 <>
                   <StewardText style={s.sectionLabel}>WHAT'S FLEXIBLE</StewardText>
@@ -542,13 +641,11 @@ export default function NavigateScreen({ route }) {
                 </>
               )}
 
-              {/* First action */}
               <StewardText style={s.sectionLabel}>DO THIS FIRST</StewardText>
               <StewardCard variant="forest" style={s.actionCard}>
                 <StewardText style={s.actionText}>{response.firstAction}</StewardText>
               </StewardCard>
 
-              {/* Recovery timeline */}
               <StewardText style={s.sectionLabel}>RECOVERY ARC</StewardText>
               <StewardCard style={s.timelineCard}>
                 {response.recoverySteps.map((step, i) => (
@@ -556,7 +653,6 @@ export default function NavigateScreen({ route }) {
                 ))}
               </StewardCard>
 
-              {/* Start over */}
               <TouchableOpacity style={s.resetBtn} onPress={reset}>
                 <StewardText style={s.resetLabel}>Start over</StewardText>
               </TouchableOpacity>
@@ -617,35 +713,67 @@ const s = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
 
-  eventGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-    marginBottom: SPACING.lg,
+  sectionLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.xs,
+    color: COLORS.sage,
+    letterSpacing: 1.2,
+    marginBottom: SPACING.sm,
   },
-  eventBtn: {
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.full,
+
+  eventList: {
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  lifeEventBtn: {
+    borderTopWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderLeftWidth: 2,
+    borderTopColor: COLORS.border,
+    borderRightColor: COLORS.border,
+    borderBottomColor: COLORS.border,
+    borderLeftColor: COLORS.forest,
+    borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     backgroundColor: COLORS.white,
   },
-  eventBtnActive: {
-    backgroundColor: COLORS.forest,
-    borderColor: COLORS.forest,
+  lifeEventBtnActive: {
+    backgroundColor: COLORS.forestMuted,
   },
-  eventLabel: {
+  crisisEventBtn: {
+    borderTopWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderLeftWidth: 2,
+    borderTopColor: COLORS.border,
+    borderRightColor: COLORS.border,
+    borderBottomColor: COLORS.border,
+    borderLeftColor: COLORS.ember,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    backgroundColor: COLORS.white,
+  },
+  crisisEventBtnActive: {
+    backgroundColor: COLORS.emberMuted,
+  },
+  eventBtnLabel: {
     fontFamily: FONTS.sans.regular,
     fontSize: SIZES.sm,
     color: COLORS.hearth,
   },
-  eventLabelActive: {
-    color: COLORS.white,
+  lifeEventBtnLabelActive: {
     fontFamily: FONTS.sans.medium,
+    color: COLORS.forest,
+  },
+  crisisEventBtnLabelActive: {
+    fontFamily: FONTS.sans.medium,
+    color: COLORS.ember,
   },
 
-  contextWrap: { marginBottom: SPACING.lg },
+  contextWrap: { marginTop: SPACING.md, marginBottom: SPACING.lg },
   contextLabel: {
     fontFamily: FONTS.sans.medium,
     fontSize: SIZES.sm,
@@ -698,12 +826,32 @@ const s = StyleSheet.create({
     lineHeight: SIZES.base * 1.8,
   },
 
-  sectionLabel: {
-    fontFamily: FONTS.sans.medium,
-    fontSize: SIZES.xs,
-    color: COLORS.sage,
-    letterSpacing: 1.2,
-    marginBottom: SPACING.sm,
+  considerCard: { marginBottom: SPACING.lg },
+  considerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+  },
+  considerDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.forest,
+    marginTop: 6,
+    flexShrink: 0,
+  },
+  considerText: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.sm,
+    color: COLORS.hearth,
+    lineHeight: SIZES.sm * 1.6,
+    flex: 1,
+  },
+
+  savedCard: {
+    marginBottom: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
   },
 
   inventoryCard: { marginBottom: SPACING.lg },

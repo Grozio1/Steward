@@ -92,6 +92,71 @@ function CurrencyStep({ step, onSubmit }) {
   );
 }
 
+// ─── Date input ────────────────────────────────────────────────────────────────
+function DateStep({ step, onSubmit }) {
+  const [value, setValue] = useState('');
+  const [error, setError] = useState('');
+
+  const handleChange = (text) => {
+    const clean = text.replace(/[^0-9]/g, '').slice(0, 8);
+    let formatted = clean;
+    if (clean.length > 2) formatted = clean.slice(0, 2) + '/' + clean.slice(2);
+    if (clean.length > 4) formatted = clean.slice(0, 2) + '/' + clean.slice(2, 4) + '/' + clean.slice(4);
+    setValue(formatted);
+    if (error) setError('');
+  };
+
+  const validate = () => {
+    if (value.length < 10) return 'Please enter a complete date (MM/DD/YYYY).';
+    const parts = value.split('/');
+    const [m, d, y] = parts.map(Number);
+    const date = new Date(y, m - 1, d);
+    if (isNaN(date.getTime()) || date.getMonth() !== m - 1 || date.getDate() !== d)
+      return 'That doesn\'t look like a valid date.';
+    if (step.key === 'dateOfBirth' && date >= new Date())
+      return 'Date of birth can\'t be in the future.';
+    return '';
+  };
+
+  const handleSubmit = () => {
+    const err = validate();
+    if (err) { setError(err); return; }
+    onSubmit(value);
+  };
+
+  return (
+    <View style={styles.wrapper}>
+      <TextInput
+        style={inputBase}
+        placeholder={step.placeholder || 'MM/DD/YYYY'}
+        placeholderTextColor={COLORS.placeholder}
+        value={value}
+        onChangeText={handleChange}
+        keyboardType="number-pad"
+        maxLength={10}
+        autoFocus
+        returnKeyType="done"
+        onSubmitEditing={handleSubmit}
+      />
+      {error ? (
+        <Text style={{ fontFamily: FONTS.sans.regular, fontSize: SIZES.xs, color: COLORS.ember, marginTop: 2 }}>
+          {error}
+        </Text>
+      ) : null}
+      <SubmitButton
+        label={step.submitLabel || 'Continue'}
+        onPress={handleSubmit}
+        disabled={!value}
+      />
+      {step.optional && (
+        <TouchableOpacity style={styles.skipBtn} onPress={() => onSubmit(null)}>
+          <StewardText style={styles.skipLabel}>{step.skipLabel || 'Skip'}</StewardText>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
 // ─── Choice input (auto-advances on tap) ──────────────────────────────────────
 function ChoiceStep({ step, onSubmit }) {
   const [selected, setSelected] = useState(null);
@@ -532,6 +597,7 @@ export default function StepInput({ step, onSubmit, answers }) {
   switch (step.inputType) {
     case 'text':        return <TextStep step={step} onSubmit={onSubmit} />;
     case 'currency':    return <CurrencyStep step={step} onSubmit={onSubmit} />;
+    case 'date':        return <DateStep step={step} onSubmit={onSubmit} />;
     case 'choice':      return <ChoiceStep step={step} onSubmit={onSubmit} />;
     case 'list':        return <ListStep step={step} onSubmit={onSubmit} />;
     case 'debtList':    return <DebtListStep step={step} onSubmit={onSubmit} />;

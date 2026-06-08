@@ -60,6 +60,24 @@ export const STEPS = [
     multiline: false,
   },
   {
+    id: 'dateOfBirth',
+    getMessage: () => "When were you born? This helps me give you guidance that fits where you are in life.",
+    inputType: 'date',
+    key: 'dateOfBirth',
+    placeholder: 'MM/DD/YYYY',
+    submitLabel: 'Continue',
+  },
+  {
+    id: 'jobStartDate',
+    getMessage: () => "When did you start your current job?",
+    inputType: 'date',
+    key: 'jobStartDate',
+    placeholder: 'MM/DD/YYYY',
+    submitLabel: 'Continue',
+    skipLabel: 'Skip for now',
+    optional: true,
+  },
+  {
     id: 'income',
     getMessage: (a) =>
       `Good to meet you, ${a.name}.\n\nWhat's your take-home pay per paycheck — after taxes and deductions?`,

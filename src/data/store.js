@@ -160,7 +160,7 @@ export function netTransferred(transfers, layer) {
 }
 
 // ─── Life events (Navigate) ────────────────────────────────────────────────────
-export async function saveLifeEvent({ event, notes }) {
+export async function saveLifeEvent({ event, notes, type }) {
   try {
     const raw = await AsyncStorage.getItem('steward_life_events');
     const existing = raw ? JSON.parse(raw) : [];
@@ -172,6 +172,7 @@ export async function saveLifeEvent({ event, notes }) {
       month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
       event,
       notes: notes || null,
+      type: type || 'milestone',
     };
     await AsyncStorage.setItem('steward_life_events', JSON.stringify([...existing, record]));
   } catch (err) {

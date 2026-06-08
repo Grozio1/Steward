@@ -12,23 +12,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS } from '../../constants/brand';
 import { getProfile, formatCurrency } from '../../data/store';
-import { toMonthly } from '../../ai/stub';
+import { toMonthly, getAge } from '../../ai/stub';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 
 const SS_KEY = 'steward_ss_estimate';
 
 const TABS = ['Trajectory', 'Social Security', 'Withdrawal'];
-
-// Spec-specified midpoint ages for each life stage.
-const AGE_BY_STAGE = {
-  starting_out: 25,
-  building:     31,
-  family_years: 38,
-  peak_earning: 50,
-  transition:   61,
-  retirement:   68,
-};
 
 // Which stages unlock Social Security and Withdrawal tabs.
 const SS_STAGES       = new Set(['peak_earning', 'transition', 'retirement']);
@@ -133,7 +123,7 @@ function VoiceCard({ children }) {
 function TrajectoryTab({ profile, monthlyIncome }) {
   const investments  = profile?.investments ?? [];
   const totalBalance = investments.reduce((s, i) => s + (Number(i.balance) || 0), 0);
-  const inferredAge  = AGE_BY_STAGE[profile?.lifeStage] ?? 35;
+  const inferredAge  = getAge(profile);
   const baseContrib  = calcMonthlyContrib(investments, monthlyIncome);
 
   const [retirementAge,  setRetirementAge]  = useState(65);
@@ -179,7 +169,11 @@ function TrajectoryTab({ profile, monthlyIncome }) {
           <View style={s.triDivider} />
           <View style={s.triStat}>
             <StewardText style={s.triValue}>{yearsTo}</StewardText>
-            <StewardText style={s.triLabel}>{yearsTo === 1 ? 'year left' : 'years left'}</StewardText>
+            <StewardText style={s.triLabel}>
+              {profile?.dateOfBirth
+                ? `Age ${inferredAge} · ${Math.max(0, 65 - inferredAge)} to 65`
+                : yearsTo === 1 ? 'year left' : 'years left'}
+            </StewardText>
           </View>
         </View>
       </StewardCard>
@@ -240,8 +234,8 @@ function TrajectoryTab({ profile, monthlyIncome }) {
           <Stepper
             label="RETIRE AT"
             display={String(retirementAge)}
-            onDecrement={() => setRetirementAge(a => Math.max(60, a - 1))}
-            onIncrement={() => setRetirementAge(a => Math.min(72, a + 1))}
+            onDecrement={() => setRetirementAge(a => Math.max(50, a - 1))}
+            onIncrement={() => setRetirementAge(a => Math.min(75, a + 1))}
           />
         </View>
       </StewardCard>
@@ -387,7 +381,7 @@ const BUCKET_META = {
 function WithdrawalTab({ profile, monthlyIncome }) {
   const lifeStage  = profile?.lifeStage;
   const investments = profile?.investments ?? [];
-  const inferredAge = AGE_BY_STAGE[lifeStage] ?? 35;
+  const inferredAge = getAge(profile);
 
   if (!WITHDRAW_STAGES.has(lifeStage)) {
     return (

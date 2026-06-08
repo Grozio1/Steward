@@ -8,6 +8,7 @@ import {
   getDailyObservation as stubObservation,
   generateSynthesis as stubSynthesis,
 } from './stub';
+import { getLifeEvents } from '../data/store';
 
 export { generatePlan } from './stub';
 
@@ -40,6 +41,17 @@ async function call(model, system, userContent, maxTokens) {
 
 // ─── Daily observation ─────────────────────────────────────────────────────────
 // Haiku — one sentence, max 60 tokens. Profile may be null (called before load).
+// Returns days between two month+day pairs, accounting for year-end wraparound.
+function annualDaysDiff(refMonth, refDay) {
+  const today = new Date();
+  const ref = new Date(today.getFullYear(), refMonth, refDay);
+  const diffDays = Math.round((ref - today) / 86400000);
+  // Normalize across year boundary: -183 to 182 → pick the closest direction
+  if (diffDays > 182)  return diffDays - 365;
+  if (diffDays < -182) return diffDays + 365;
+  return diffDays;
+}
+
 export async function getDailyObservation(profile, context = {}) {
   try {
     const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -48,6 +60,39 @@ export async function getDailyObservation(profile, context = {}) {
     if (profile?.netIncome) parts.push(`Take-home: $${Number(profile.netIncome).toLocaleString()}/mo`);
     if (profile?.savings) parts.push(`Savings: $${Number(profile.savings).toLocaleString()}`);
     if (context.overAmount > 0) parts.push(`Over budget by $${Number(context.overAmount).toLocaleString()} this month`);
+
+    // Birthday check
+    if (profile?.dateOfBirth) {
+      const dob = new Date(profile.dateOfBirth);
+      if (!isNaN(dob.getTime())) {
+        const diff = annualDaysDiff(dob.getMonth(), dob.getDate());
+        if (Math.abs(diff) <= 7) {
+          const today = new Date();
+          const age = today.getFullYear() - dob.getFullYear() + (diff <= 0 ? 0 : -1);
+          parts.push(`Birthday: turning ${age + 1} ${diff > 0 ? `in ${diff} day${diff !== 1 ? 's' : ''}` : diff === 0 ? 'today' : 'just passed'}`);
+        }
+      }
+    }
+
+    // Life milestone anniversary check (milestones only, not crisis events)
+    try {
+      const lifeEvents = await getLifeEvents();
+      const today = new Date();
+      for (const evt of lifeEvents) {
+        if (evt.type === 'crisis') continue;
+        const evtDate = new Date(evt.date);
+        if (isNaN(evtDate.getTime())) continue;
+        if (evtDate.getFullYear() >= today.getFullYear()) continue; // skip same-year events
+        const diff = annualDaysDiff(evtDate.getMonth(), evtDate.getDate());
+        if (Math.abs(diff) <= 7) {
+          const yearsAgo = today.getFullYear() - evtDate.getFullYear();
+          parts.push(`Life anniversary: ${yearsAgo} year${yearsAgo !== 1 ? 's' : ''} since "${evt.event}"`);
+          break; // one anniversary hint per observation is enough
+        }
+      }
+    } catch {
+      // Non-critical — proceed without anniversary context
+    }
 
     const text = await call(
       'claude-3-haiku-20240307',

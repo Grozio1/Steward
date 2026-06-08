@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
-import { getProfile, saveProfile } from '../../data/store';
+import { getProfile, saveProfile, saveLifeEvent } from '../../data/store';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 
@@ -503,6 +503,8 @@ export default function ProfileScreen({ navigation }) {
   const [original, setOriginal] = useState(null);
   const [name, setName] = useState('');
   const [priorities, setPriorities] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [jobStartDate, setJobStartDate] = useState('');
   const [netIncome, setNetIncome] = useState('');
   const [payFrequency, setPayFrequency] = useState('biweekly');
   const [fixedCommitments, setFixedCommitments] = useState([]);
@@ -519,6 +521,8 @@ export default function ProfileScreen({ navigation }) {
       setOriginal(p);
       setName(p.name || '');
       setPriorities(p.priorities || '');
+      setDateOfBirth(p.dateOfBirth || '');
+      setJobStartDate(p.jobStartDate || '');
       setNetIncome(p.netIncome ? String(p.netIncome) : '');
       setPayFrequency(p.payFrequency || 'biweekly');
       setFixedCommitments(p.fixedCommitments || []);
@@ -531,7 +535,7 @@ export default function ProfileScreen({ navigation }) {
   }, []);
 
   // Track changes
-  useEffect(() => { setDirty(true); }, [name, priorities, netIncome, payFrequency, fixedCommitments, regularExpenses, debts, savings, investments, savingsGoals]);
+  useEffect(() => { setDirty(true); }, [name, priorities, dateOfBirth, jobStartDate, netIncome, payFrequency, fixedCommitments, regularExpenses, debts, savings, investments, savingsGoals]);
   useEffect(() => { setDirty(false); }, [original]); // reset after load
 
   const handleSave = async () => {
@@ -540,10 +544,18 @@ export default function ProfileScreen({ navigation }) {
       return;
     }
 
+    // If job start date changed and a previous value existed, write milestone
+    const trimmedJobStart = jobStartDate.trim();
+    if (original?.jobStartDate && original.jobStartDate !== trimmedJobStart && trimmedJobStart) {
+      await saveLifeEvent({ event: 'Career change', notes: `New job start date recorded`, type: 'milestone' });
+    }
+
     const updatedProfile = {
       ...original,
       name: name.trim(),
       priorities: priorities.trim(),
+      dateOfBirth: dateOfBirth.trim() || undefined,
+      jobStartDate: trimmedJobStart || undefined,
       netIncome: Number(netIncome) || 0,
       payFrequency,
       fixedCommitments: fixedCommitments.filter((c) => c.name.trim()),
@@ -664,6 +676,22 @@ export default function ProfileScreen({ navigation }) {
               value={name}
               onChangeText={setName}
               placeholder="Your first name"
+            />
+            <EditField
+              label="Date of birth"
+              value={dateOfBirth}
+              onChangeText={setDateOfBirth}
+              placeholder="MM/DD/YYYY"
+              keyboardType="number-pad"
+              hint="Helps personalize age-appropriate guidance."
+            />
+            <EditField
+              label="Job start date"
+              value={jobStartDate}
+              onChangeText={setJobStartDate}
+              placeholder="MM/DD/YYYY"
+              keyboardType="number-pad"
+              hint="When you started your current job."
             />
             <EditField
               label="What matters most to you right now?"

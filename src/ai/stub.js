@@ -11,6 +11,27 @@ function fmt(n) {
   return `$${Math.round(Number(n) || 0).toLocaleString()}`;
 }
 
+// Returns the user's current age in years.
+// Uses dateOfBirth when available; falls back to life-stage midpoints.
+const STAGE_MIDPOINTS = {
+  starting_out:      25,
+  building_career:   31,
+  growing_household: 38,
+  peak_earning:      50,
+  pre_retirement:    61,
+  retired:           68,
+};
+
+export function getAge(profile) {
+  if (profile?.dateOfBirth) {
+    const dob = new Date(profile.dateOfBirth);
+    if (!isNaN(dob.getTime())) {
+      return Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+    }
+  }
+  return STAGE_MIDPOINTS[profile?.lifeStageSignal] ?? 35;
+}
+
 // Converts per-paycheck netIncome to a true monthly figure.
 export function toMonthly(netIncome, payFrequency) {
   const n = Number(netIncome) || 0;
