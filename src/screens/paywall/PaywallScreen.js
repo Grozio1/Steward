@@ -7,15 +7,23 @@ import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 
 const FEATURE_LABELS = {
-  biography: 'Financial Story',
+  biography:  'Financial Story',
   retirement: 'Retirement Outlook',
-  benchmark: 'Peer Benchmarks',
-  decide: 'Unlimited Decision Checks',
+  benchmark:  'Peer Benchmarks',
+  decide:     'Unlimited Decision Checks',
+};
+
+const FEATURE_DESCS = {
+  biography:  'See your financial life as a story — annual chapters, milestones, and the arc of your progress over time.',
+  retirement: 'Project your Social Security timing, withdrawal strategy, and retirement trajectory from your real numbers.',
+  benchmark:  'See how your savings rate, debt load, and spending compare to anonymous peers at your life stage and income.',
+  decide:     "You've used your 5 free checks this month. Pro removes the limit — check any spending decision, any time.",
 };
 
 export default function PaywallScreen({ route, navigation }) {
   const feature = route?.params?.feature ?? '';
   const label = FEATURE_LABELS[feature] ?? 'This Feature';
+  const desc  = FEATURE_DESCS[feature]  ?? 'This is part of Steward Pro — a deeper look at your financial life.';
 
   return (
     <SafeAreaView style={s.root} edges={['top', 'left', 'right']}>
@@ -34,9 +42,7 @@ export default function PaywallScreen({ route, navigation }) {
         <StewardCard variant="forest" style={s.featureCard}>
           <StewardText style={s.featureTag}>PRO FEATURE</StewardText>
           <StewardText style={s.featureName}>{label}</StewardText>
-          <StewardText style={s.featureDesc}>
-            This is part of Steward Pro — a deeper look at your financial life.
-          </StewardText>
+          <StewardText style={s.featureDesc}>{desc}</StewardText>
         </StewardCard>
 
         <StewardCard variant="parchment" style={s.pricingCard}>
