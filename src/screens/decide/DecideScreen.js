@@ -153,8 +153,9 @@ export default function DecideScreen({ navigation }) {
   };
 
   const handleDecide = async () => {
+    if (limitReached) return;
     const amt = Number(amount);
-    if (!amt || amt <= 0 || limitReached) return;
+    if (!amt || amt <= 0) return;
 
     setThinking(true);
     setResult(null);
@@ -324,7 +325,11 @@ export default function DecideScreen({ navigation }) {
                 </ScrollView>
 
                 <TouchableOpacity
-                  style={[s.decideBtn, (!amount || thinking || limitReached) && s.decideBtnDisabled]}
+                  style={[
+                    s.decideBtn,
+                    (!amount || thinking) && s.decideBtnDisabled,
+                    limitReached && s.decideBtnLimitReached,
+                  ]}
                   onPress={handleDecide}
                   disabled={!amount || thinking || limitReached}
                 >
@@ -486,6 +491,7 @@ const s = StyleSheet.create({
     ...SHADOW.soft,
   },
   decideBtnDisabled: { backgroundColor: COLORS.forestLight },
+  decideBtnLimitReached: { opacity: 0.4 },
   decideBtnLabel: {
     fontFamily: FONTS.sans.medium,
     fontSize: SIZES.base,
