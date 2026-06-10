@@ -12,10 +12,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getProfile, getPlan, getSpends, currentMonth, formatCurrency } from '../../data/store';
 import { Text } from 'react-native';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
+import { isProTier } from '../../utils/tier';
 
 // ─── Category → layer mapping ─────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -100,7 +102,9 @@ function ImpactBar({ label, before, after, total }) {
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────────────
-export default function DecideScreen() {
+const DECIDE_LIMIT = 5;
+
+export default function DecideScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [plan, setPlan] = useState(null);
   const [spends, setSpends] = useState([]);
@@ -110,17 +114,33 @@ export default function DecideScreen() {
   const [result, setResult] = useState(null);
   const [thinking, setThinking] = useState(false);
   const [chosen, setChosen] = useState(null);
+  const [limitReached, setLimitReached] = useState(false);
+  const [decideCount, setDecideCount] = useState(0);
 
   const month = currentMonth();
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      Promise.all([getProfile(), getPlan(month), getSpends(month)]).then(([p, pl, sp]) => {
+      const countKey = `steward_decide_count_${month}`;
+      Promise.all([
+        getProfile(),
+        getPlan(month),
+        getSpends(month),
+        AsyncStorage.getItem(countKey),
+      ]).then(([p, pl, sp, countRaw]) => {
         if (!active) return;
         setProfile(p);
         setPlan(pl);
         setSpends(sp);
+        if (!isProTier(p)) {
+          const count = countRaw ? parseInt(countRaw, 10) : 0;
+          setDecideCount(count);
+          setLimitReached(count >= DECIDE_LIMIT);
+        } else {
+          setDecideCount(0);
+          setLimitReached(false);
+        }
       });
       return () => { active = false; };
     }, [month])
@@ -134,7 +154,7 @@ export default function DecideScreen() {
 
   const handleDecide = async () => {
     const amt = Number(amount);
-    if (!amt || amt <= 0) return;
+    if (!amt || amt <= 0 || limitReached) return;
 
     setThinking(true);
     setResult(null);
@@ -214,6 +234,15 @@ export default function DecideScreen() {
       paths,
     });
 
+    // Increment usage counter (monthly key auto-resets each new month)
+    if (!isProTier(profile)) {
+      const countKey = `steward_decide_count_${month}`;
+      const newCount = decideCount + 1;
+      setDecideCount(newCount);
+      await AsyncStorage.setItem(countKey, String(newCount));
+      if (newCount >= DECIDE_LIMIT) setLimitReached(true);
+    }
+
     setThinking(false);
   };
 
@@ -244,6 +273,22 @@ export default function DecideScreen() {
             </StewardCard>
           ) : (
             <>
+              {/* Monthly limit — free tier */}
+              {limitReached && (
+                <StewardCard variant="parchment" style={s.limitCard}>
+                  <StewardText style={s.limitText}>
+                    You've used your five decision checks this month. Pro removes the limit.
+                  </StewardText>
+                  <TouchableOpacity
+                    style={s.limitLink}
+                    onPress={() => navigation.navigate('Paywall', { feature: 'decide' })}
+                    activeOpacity={0.7}
+                  >
+                    <StewardText style={s.limitLinkLabel}>Learn about Pro →</StewardText>
+                  </TouchableOpacity>
+                </StewardCard>
+              )}
+
               {/* Input area */}
               <StewardCard style={s.inputCard}>
                 <StewardText style={s.inputLabel}>I'm thinking about spending…</StewardText>
@@ -279,9 +324,9 @@ export default function DecideScreen() {
                 </ScrollView>
 
                 <TouchableOpacity
-                  style={[s.decideBtn, (!amount || thinking) && s.decideBtnDisabled]}
+                  style={[s.decideBtn, (!amount || thinking || limitReached) && s.decideBtnDisabled]}
                   onPress={handleDecide}
-                  disabled={!amount || thinking}
+                  disabled={!amount || thinking || limitReached}
                 >
                   {thinking ? (
                     <ActivityIndicator color={COLORS.white} size="small" />
@@ -365,6 +410,20 @@ const s = StyleSheet.create({
   scroll: {
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.md,
+  },
+
+  limitCard: { marginBottom: SPACING.md, gap: SPACING.sm },
+  limitText: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.base,
+    color: COLORS.hearth,
+    lineHeight: SIZES.base * 1.6,
+  },
+  limitLink: { alignSelf: 'flex-start' },
+  limitLinkLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.base,
+    color: COLORS.forest,
   },
 
   noPlanCard: { padding: SPACING.lg },
