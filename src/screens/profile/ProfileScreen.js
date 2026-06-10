@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -9,6 +9,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -514,6 +515,7 @@ export default function ProfileScreen({ navigation }) {
   const [investments, setInvestments] = useState([]);
   const [savingsGoals, setSavingsGoals] = useState([]);
   const [dirty, setDirty] = useState(false);
+  const skipDirtyResetRef = useRef(false);
 
   useEffect(() => {
     getProfile().then((p) => {
@@ -536,7 +538,20 @@ export default function ProfileScreen({ navigation }) {
 
   // Track changes
   useEffect(() => { setDirty(true); }, [name, priorities, dateOfBirth, jobStartDate, netIncome, payFrequency, fixedCommitments, regularExpenses, debts, savings, investments, savingsGoals]);
-  useEffect(() => { setDirty(false); }, [original]); // reset after load
+  useEffect(() => {
+    if (skipDirtyResetRef.current) { skipDirtyResetRef.current = false; return; }
+    setDirty(false);
+  }, [original]); // reset after load or save (not after dev tier toggle)
+
+  const handleDevTierToggle = async (val) => {
+    if (!original) return;
+    const newTier = val ? 'pro' : 'free';
+    const updated = { ...original, tier: newTier };
+    // Write directly — bypasses saveProfile so updatedAt is NOT stamped
+    await AsyncStorage.setItem('steward_profile', JSON.stringify(updated));
+    skipDirtyResetRef.current = true;
+    setOriginal(updated);
+  };
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -844,6 +859,24 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </StewardCard>
 
+          {/* DEV-only tier override */}
+          {__DEV__ && (
+            <View style={s.devRow}>
+              <StewardText style={s.devLabel}>DEV — Tier override</StewardText>
+              <View style={s.devRight}>
+                <StewardText style={s.devTierBadge}>
+                  {original?.tier === 'pro' ? 'pro' : 'free'}
+                </StewardText>
+                <Switch
+                  value={original?.tier === 'pro'}
+                  onValueChange={handleDevTierToggle}
+                  trackColor={{ false: COLORS.border, true: COLORS.ember }}
+                  thumbColor={COLORS.white}
+                />
+              </View>
+            </View>
+          )}
+
           {/* Danger zone */}
           <View style={s.danger}>
             <TouchableOpacity
@@ -1144,4 +1177,33 @@ const s = StyleSheet.create({
   reprofileTextBlock: { flex: 1, marginRight: SPACING.md },
   reprofileButton: { backgroundColor: COLORS.forest, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.sm },
   reprofileButtonText: { color: COLORS.parchment, letterSpacing: 0.8 },
+
+  devRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.ember,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.emberMuted,
+  },
+  devLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.xs,
+    color: COLORS.ember,
+    letterSpacing: 0.5,
+  },
+  devRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  devTierBadge: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.sm,
+    color: COLORS.ember,
+  },
 });
