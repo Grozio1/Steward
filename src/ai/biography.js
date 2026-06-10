@@ -59,6 +59,7 @@ async function loadSnapshots() {
 async function loadCurrentYear(profile) {
   const now = new Date();
   const currentYear = now.getFullYear();
+  const startDate = new Date(profile.createdAt);
   const monthsThisYear = [];
 
   for (let m = 0; m < now.getMonth() + 1; m++) {
@@ -101,9 +102,16 @@ async function loadCurrentYear(profile) {
   // Debt totals from profile (current state)
   const currentDebt = (profile.debts || []).reduce((s, d) => s + d.balance, 0);
 
+  // Whole months elapsed since account start, capped to months completed in current year.
+  // Both use getMonth() (0-indexed), so same-month = 0.
+  const monthsSinceStart = Math.max(0,
+    (now.getFullYear() - startDate.getFullYear()) * 12 + now.getMonth() - startDate.getMonth()
+  );
+  const monthsIn = Math.min(now.getMonth(), monthsSinceStart);
+
   return {
     year: currentYear,
-    monthsIn: now.getMonth() + 1,
+    monthsIn,
     avgIncome: Math.round(avgIncome),
     spendByLayer,
     stabilityDeposited: Math.round(stabilityDeposited),
@@ -383,8 +391,10 @@ function formatMonthYear(isoString) {
 function computeYearsActive(createdAt) {
   const start = new Date(createdAt);
   const now = new Date();
-  const years = (now - start) / (1000 * 60 * 60 * 24 * 365);
-  return Math.max(1, Math.round(years * 10) / 10);
+  const months = Math.max(0,
+    (now.getFullYear() - start.getFullYear()) * 12 + now.getMonth() - start.getMonth()
+  );
+  return Math.floor(months / 12);
 }
 
 function yearLabel(year, startYear) {

@@ -227,13 +227,15 @@ export default function BiographyScreen({ route, navigation }) {
   const pulse = useRef(new Animated.Value(0.5)).current;
 
   // Compute header values directly from profile — no need to wait for bio load.
-  const yearsActive = profile
-    ? Math.max(1, Math.round(
-        ((Date.now() - new Date(profile.createdAt)) / (365.25 * 24 * 60 * 60 * 1000)) * 10
-      ) / 10)
-    : 1;
-  const startDate = profile
-    ? new Date(profile.createdAt).toLocaleString('default', { month: 'long', year: 'numeric' })
+  // Use whole months elapsed (floor) so a same-month account reads 0 months / 0 years.
+  const _now = new Date();
+  const _start = profile ? new Date(profile.createdAt) : null;
+  const monthsElapsed = _start
+    ? Math.max(0, (_now.getFullYear() - _start.getFullYear()) * 12 + _now.getMonth() - _start.getMonth())
+    : 0;
+  const yearsActive = Math.floor(monthsElapsed / 12);
+  const startDate = _start
+    ? _start.toLocaleString('default', { month: 'long', year: 'numeric' })
     : '';
 
   useEffect(() => {
@@ -285,7 +287,10 @@ export default function BiographyScreen({ route, navigation }) {
         <View style={{ flex: 1 }}>
           <StewardText style={s.headerTitle}>Your financial story.</StewardText>
           <StewardText style={s.headerSub}>
-            {yearsActive} {yearsActive === 1 ? 'year' : 'years'} active · since {startDate}
+            {yearsActive > 0
+              ? `${yearsActive} ${yearsActive === 1 ? 'year' : 'years'} active · since ${startDate}`
+              : `since ${startDate}`
+            }
           </StewardText>
         </View>
       </View>
