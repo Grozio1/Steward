@@ -355,7 +355,10 @@ export default function BiographyScreen({ route, navigation }) {
           {/* Peer benchmarking entry — Pro only */}
           <TouchableOpacity
             style={s.benchmarkRow}
-            onPress={() => navigation.navigate('PeerBenchmark')}
+            onPress={() => isProTier(profile)
+              ? navigation.navigate('PeerBenchmark')
+              : navigation.navigate('Paywall', { feature: 'benchmark' })
+            }
             activeOpacity={0.8}
           >
             <View style={{ flex: 1 }}>

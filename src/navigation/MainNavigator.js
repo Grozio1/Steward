@@ -116,6 +116,11 @@ export default function MainNavigator() {
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen
+        name="PeerBenchmark"
+        component={PeerBenchmarkScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
         name="Paywall"
         component={PaywallScreen}
         options={{ animation: 'slide_from_right' }}

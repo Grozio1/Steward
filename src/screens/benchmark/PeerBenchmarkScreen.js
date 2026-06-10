@@ -12,6 +12,7 @@ import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 import { getProfile } from '../../data/store';
 import { toMonthly } from '../../ai/stub';
+import { isProTier } from '../../utils/tier';
 
 const STAGE_LABELS = {
   starting_out: 'Starting Out',
@@ -103,7 +104,7 @@ const CompareRow = ({ label, yourPct, peerPct, invert = false }) => {
   );
 };
 
-export default function PeerBenchmarkScreen() {
+export default function PeerBenchmarkScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [benchmarks, setBenchmarks] = useState(null);
@@ -150,6 +151,28 @@ export default function PeerBenchmarkScreen() {
   if (loading) return <View style={styles.loadingContainer}><ActivityIndicator color={COLORS.forest} /></View>;
   if (!profile || !benchmarks) return <View style={styles.emptyContainer}><StewardText variant="body" style={{ textAlign: 'center', color: COLORS.placeholder }}>Complete your profile to see how your household compares.</StewardText></View>;
 
+  if (!isProTier(profile)) {
+    return (
+      <View style={styles.paywallContainer}>
+        <StewardCard variant="parchment" style={styles.paywallCard}>
+          <StewardText variant="bodyMedium" style={{ marginBottom: SPACING.sm }}>
+            Peer Benchmarks
+          </StewardText>
+          <StewardText variant="body" style={{ color: COLORS.placeholder, marginBottom: SPACING.md, lineHeight: SIZES.base * 1.6 }}>
+            Compare your household anonymously with peers at a similar life stage and income level. Available on Pro.
+          </StewardText>
+          <TouchableOpacity
+            style={styles.paywallBtn}
+            onPress={() => navigation.navigate('Paywall', { feature: 'benchmark' })}
+            activeOpacity={0.8}
+          >
+            <StewardText style={styles.paywallBtnLabel}>Learn about Pro →</StewardText>
+          </TouchableOpacity>
+        </StewardCard>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <StewardText variant="heading" style={styles.heading}>How you compare</StewardText>
@@ -183,6 +206,10 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: SPACING.md, paddingTop: SPACING.lg, paddingBottom: SPACING.xxl },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.parchment },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: SPACING.xl, backgroundColor: COLORS.parchment },
+  paywallContainer: { flex: 1, justifyContent: 'center', padding: SPACING.lg, backgroundColor: COLORS.parchment },
+  paywallCard: { padding: SPACING.md },
+  paywallBtn: { alignSelf: 'flex-start', paddingVertical: SPACING.xs },
+  paywallBtnLabel: { fontFamily: FONTS.sans.medium, fontSize: SIZES.base, color: COLORS.forest },
   heading: { marginBottom: SPACING.md },
   contextCard: { padding: SPACING.md, marginBottom: SPACING.md },
   contextLabel: { color: COLORS.parchment, opacity: 0.7, letterSpacing: 0.8, marginBottom: SPACING.xs },
