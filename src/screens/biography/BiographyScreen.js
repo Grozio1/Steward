@@ -324,14 +324,14 @@ export default function BiographyScreen({ route, navigation }) {
             <View style={s.summaryRow}>
               <View style={s.summaryItem}>
                 <StewardText style={s.summaryValue}>
-                  {formatCurrency(bio.totals.debtPaid)}
+                  {formatCurrency(bio.totals?.debtPaid ?? 0)}
                 </StewardText>
                 <StewardText style={s.summaryLabel}>Debt paid</StewardText>
               </View>
               <View style={s.summaryDivider} />
               <View style={s.summaryItem}>
                 <StewardText style={s.summaryValue}>
-                  {formatCurrency(bio.totals.savingsBuilt)}
+                  {formatCurrency(bio.totals?.savingsBuilt ?? 0)}
                 </StewardText>
                 <StewardText style={s.summaryLabel}>Savings built</StewardText>
               </View>
@@ -340,11 +340,11 @@ export default function BiographyScreen({ route, navigation }) {
                 <StewardText
                   style={[
                     s.summaryValue,
-                    bio.totals.netWorthChange >= 0 && { color: '#A3D5B5' },
+                    (bio.totals?.netWorthChange ?? 0) >= 0 && { color: '#A3D5B5' },
                   ]}
                 >
-                  {bio.totals.netWorthChange >= 0 ? '+' : ''}
-                  {formatCurrency(bio.totals.netWorthChange)}
+                  {(bio.totals?.netWorthChange ?? 0) >= 0 ? '+' : ''}
+                  {formatCurrency(bio.totals?.netWorthChange ?? 0)}
                 </StewardText>
                 <StewardText style={s.summaryLabel}>Net worth Δ</StewardText>
               </View>
