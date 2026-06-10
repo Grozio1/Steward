@@ -730,6 +730,7 @@ export default function DashboardScreen({ navigation }) {
   const [withdrawalGoal, setWithdrawalGoal] = useState(null);
   const [ovageAmount, setOvageAmount] = useState('');
   const [ovageItem, setOvageItem] = useState(null);
+  const [planError, setPlanError] = useState(false);
   const month = currentMonth();
 
   const load = useCallback(async () => {
@@ -754,8 +755,13 @@ export default function DashboardScreen({ navigation }) {
     // Auto-regenerate plan if profile is newer than plan or plan is missing
     let pl = await getPlan(month);
     if (p && (!pl || (p.updatedAt && pl.generatedAt && p.updatedAt > pl.generatedAt))) {
-      pl = await generatePlan(p);
-      await savePlan(pl, month);
+      try {
+        pl = await generatePlan(p);
+        await savePlan(pl, month);
+        setPlanError(false);
+      } catch {
+        setPlanError(true);
+      }
     }
 
     if (pl) {
@@ -1162,6 +1168,12 @@ export default function DashboardScreen({ navigation }) {
               </TouchableOpacity>
             )}
           </View>
+        ) : planError ? (
+          <StewardCard variant="parchment" style={styles.planErrorCard}>
+            <StewardText style={styles.planErrorText}>
+              Something went wrong building your plan. Pull down to try again.
+            </StewardText>
+          </StewardCard>
         ) : (
           <StewardCard style={styles.emptyCard}>
             <StewardText style={styles.emptyText}>Your plan is being built. Pull to refresh.</StewardText>
@@ -1715,6 +1727,18 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans.medium,
     fontSize: SIZES.sm,
     color: COLORS.ember,
+  },
+  planErrorCard: {
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.ember,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+  },
+  planErrorText: {
+    fontFamily: FONTS.sans.regular,
+    fontSize: SIZES.base,
+    color: COLORS.hearth,
+    lineHeight: SIZES.base * 1.6,
   },
 });
 
