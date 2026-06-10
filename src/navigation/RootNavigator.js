@@ -24,7 +24,8 @@ export default function RootNavigator() {
     getProfile().then(async (profile) => {
       if (!profile) {
         const draft = await getOnboardingDraft();
-        if (draft) {
+        const hasAnswers = draft && Object.values(draft).some(v => v !== undefined);
+        if (hasAnswers) {
           setOnboardingDraft(draft);
           setInitialRoute('Onboarding');
         } else {

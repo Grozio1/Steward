@@ -61,7 +61,7 @@ export default function OnboardingScreen({ navigation, route }) {
     : 0;
 
   const [messages, setMessages] = useState(() => {
-    if (draft && firstUnanswered < STEPS.length) {
+    if (draft && firstUnanswered > 0 && firstUnanswered < STEPS.length) {
       return [
         { id: 0, type: 'steward', text: 'Picked up where you left off.' },
         { id: 1, type: 'steward', text: STEPS[firstUnanswered].getMessage(draft) },
