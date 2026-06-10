@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
-import { getProfile, saveProfile, saveLifeEvent } from '../../data/store';
+import { getProfile, saveProfile, saveLifeEvent, clearOnboardingDraft } from '../../data/store';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 
@@ -859,22 +859,35 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </StewardCard>
 
-          {/* DEV-only tier override */}
+          {/* DEV-only controls */}
           {__DEV__ && (
-            <View style={s.devRow}>
-              <StewardText style={s.devLabel}>DEV — Tier override</StewardText>
-              <View style={s.devRight}>
-                <StewardText style={s.devTierBadge}>
-                  {original?.tier === 'pro' ? 'pro' : 'free'}
-                </StewardText>
-                <Switch
-                  value={original?.tier === 'pro'}
-                  onValueChange={handleDevTierToggle}
-                  trackColor={{ false: COLORS.border, true: COLORS.ember }}
-                  thumbColor={COLORS.white}
-                />
+            <>
+              <View style={s.devRow}>
+                <StewardText style={s.devLabel}>DEV — Tier override</StewardText>
+                <View style={s.devRight}>
+                  <StewardText style={s.devTierBadge}>
+                    {original?.tier === 'pro' ? 'pro' : 'free'}
+                  </StewardText>
+                  <Switch
+                    value={original?.tier === 'pro'}
+                    onValueChange={handleDevTierToggle}
+                    trackColor={{ false: COLORS.border, true: COLORS.ember }}
+                    thumbColor={COLORS.white}
+                  />
+                </View>
               </View>
-            </View>
+
+              <TouchableOpacity
+                style={s.devRow}
+                onPress={async () => {
+                  await clearOnboardingDraft();
+                  Alert.alert('Draft cleared', 'steward_onboarding_draft removed.');
+                }}
+                activeOpacity={0.7}
+              >
+                <StewardText style={s.devLabel}>DEV — Clear onboarding draft</StewardText>
+              </TouchableOpacity>
+            </>
           )}
 
           {/* Danger zone */}
