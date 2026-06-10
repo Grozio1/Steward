@@ -20,6 +20,7 @@ import NavigateScreen from '../screens/navigate/NavigateScreen';
 import BiographyScreen from '../screens/biography/BiographyScreen';
 import PeerBenchmarkScreen from '../screens/benchmark/PeerBenchmarkScreen';
 import RetirementScreen from '../screens/retirement/RetirementScreen';
+import PaywallScreen from '../screens/paywall/PaywallScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -112,6 +113,11 @@ export default function MainNavigator() {
       <Stack.Screen
         name="Retirement"
         component={RetirementScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="Paywall"
+        component={PaywallScreen}
         options={{ animation: 'slide_from_right' }}
       />
     </Stack.Navigator>

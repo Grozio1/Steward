@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import FlameIcon from '../../components/FlameIcon';
 import AllocationBar from '../../components/AllocationBar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isProTier } from '../../utils/tier';
 
 // ─── Category → layer mapping ───────────────────────────────────────────────────
 const CATEGORIES = [
@@ -1070,12 +1071,14 @@ export default function DashboardScreen({ navigation }) {
         })}
 
         {/* Your story — Pro tier entry point */}
-        {/* TODO: restore Pro gate before launch */ true && (
-          <TouchableOpacity
-            style={styles.storyRow}
-            onPress={() => navigation.navigate('Biography', { profile })}
-            activeOpacity={0.7}
-          >
+        <TouchableOpacity
+          style={styles.storyRow}
+          onPress={() => isProTier(profile)
+            ? navigation.navigate('Biography', { profile })
+            : navigation.navigate('Paywall', { feature: 'biography' })
+          }
+          activeOpacity={0.7}
+        >
             <View style={{ flex: 1 }}>
               <StewardText style={styles.storyLabel}>Your financial story</StewardText>
               <StewardText style={styles.storyHint}>A complete look at your progress over time</StewardText>
@@ -1085,7 +1088,6 @@ export default function DashboardScreen({ navigation }) {
             </View>
             <Ionicons name="chevron-forward" size={16} color={COLORS.placeholder} />
           </TouchableOpacity>
-        )}
 
         {/* Month summary */}
         {plan && (
