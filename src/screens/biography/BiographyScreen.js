@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/brand';
+import { isProTier } from '../../utils/tier';
 import { formatCurrency } from '../../data/store';
 import { loadBiography } from '../../ai/biography';
 import StewardText from '../../components/StewardText';
@@ -393,8 +394,7 @@ export default function BiographyScreen({ route, navigation }) {
           </View>
 
           {/* Retirement Outlook card — bottom of screen, above footer */}
-          {/* TODO: add tier gate when tier field is consistently populated */}
-          {(!profile?.tier || profile?.tier === 'pro' || profile?.tier === 'family') && (
+          {isProTier(profile) && (
             <StewardCard variant="parchment" style={s.retirementCard}>
               <StewardText variant="label" style={{ marginBottom: SPACING.xs }}>
                 RETIREMENT OUTLOOK

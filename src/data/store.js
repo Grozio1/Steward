@@ -44,6 +44,7 @@ export async function getProfile() {
 export async function saveProfile(profile) {
   await AsyncStorage.setItem(K.PROFILE, JSON.stringify({
     ...profile,
+    tier: profile.tier ?? 'free',
     createdAt: profile.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }));
