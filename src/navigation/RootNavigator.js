@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { COLORS } from '../constants/brand';
 import { getProfile, getOnboardingDraft } from '../data/store';
 import { isAnnualReviewDue } from '../ai/annualReview';
+import { STEPS } from '../constants/steps';
 
 import LandingScreen from '../screens/onboarding/LandingScreen';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
@@ -19,6 +20,7 @@ export default function RootNavigator() {
   const [initialRoute, setInitialRoute] = useState('Landing');
   const [reviewProfile, setReviewProfile] = useState(null);
   const [onboardingDraft, setOnboardingDraft] = useState(null);
+  const [synthesisDraft, setSynthesisDraft] = useState(null);
 
   useEffect(() => {
     getProfile().then(async (profile) => {
@@ -26,8 +28,14 @@ export default function RootNavigator() {
         const draft = await getOnboardingDraft();
         const hasAnswers = draft && Object.values(draft).some(v => v !== undefined);
         if (hasAnswers) {
-          setOnboardingDraft(draft);
-          setInitialRoute('Onboarding');
+          const allAnswered = STEPS.every(s => draft[s.key] !== undefined);
+          if (allAnswered) {
+            setSynthesisDraft(draft);
+            setInitialRoute('Synthesis');
+          } else {
+            setOnboardingDraft(draft);
+            setInitialRoute('Onboarding');
+          }
         } else {
           setInitialRoute('Landing');
         }
@@ -66,7 +74,11 @@ export default function RootNavigator() {
         component={OnboardingScreen}
         initialParams={onboardingDraft ? { draft: onboardingDraft } : undefined}
       />
-      <Stack.Screen name="Synthesis" component={SynthesisScreen} />
+      <Stack.Screen
+        name="Synthesis"
+        component={SynthesisScreen}
+        initialParams={synthesisDraft ? { profile: synthesisDraft } : undefined}
+      />
 
       {/* Annual re-profile — shown when 365+ days since last review */}
       <Stack.Screen
