@@ -2,9 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─── Storage keys ──────────────────────────────────────────────────────────────
 const K = {
-  PROFILE: 'steward_profile',
-  PLAN: 'steward_plan',
-  SPENDS: 'steward_spends',
+  PROFILE:          'steward_profile',
+  PLAN:             'steward_plan',
+  SPENDS:           'steward_spends',
+  ONBOARDING_DRAFT: 'steward_onboarding_draft',
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -326,6 +327,30 @@ export async function getFixedOverrides(month) {
 export async function saveFixedOverrides(month, data) {
   try {
     await AsyncStorage.setItem('steward_fixed_overrides_' + month, JSON.stringify(data));
+  } catch {}
+}
+
+// ─── Onboarding draft ─────────────────────────────────────────────────────────
+// Persists accumulated answers between sessions so abandonment mid-flow
+// doesn't lose data. Never touches steward_profile directly.
+
+export async function getOnboardingDraft() {
+  try {
+    const raw = await AsyncStorage.getItem(K.ONBOARDING_DRAFT);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null; // parse failure → discard silently, start fresh
+  }
+}
+
+// Fire-and-forget — callers must NOT await this.
+export function saveOnboardingDraft(answers) {
+  AsyncStorage.setItem(K.ONBOARDING_DRAFT, JSON.stringify(answers)).catch(() => {});
+}
+
+export async function clearOnboardingDraft() {
+  try {
+    await AsyncStorage.removeItem(K.ONBOARDING_DRAFT);
   } catch {}
 }
 

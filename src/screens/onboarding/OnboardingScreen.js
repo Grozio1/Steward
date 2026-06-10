@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS } from '../../constants/brand';
 import { STEPS, CLOSING_MESSAGE } from '../../constants/steps';
+import { saveOnboardingDraft } from '../../data/store';
 import StewardText from '../../components/StewardText';
 import FlameIcon from '../../components/FlameIcon';
 import StepInput from '../../components/StepInput';
@@ -48,14 +49,38 @@ function TypingIndicator() {
 }
 
 // ─── Screen ────────────────────────────────────────────────────────────────────
-export default function OnboardingScreen({ navigation }) {
-  const [messages, setMessages] = useState([
-    { id: 0, type: 'steward', text: STEPS[0].getMessage({}) },
-  ]);
-  const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState({});
+export default function OnboardingScreen({ navigation, route }) {
+  // If a draft was passed (resume path), find the first unanswered step.
+  // Skipped optional steps are stored as null and count as answered.
+  const draft = route.params?.draft ?? null;
+  const firstUnanswered = draft
+    ? (() => {
+        const idx = STEPS.findIndex((s) => draft[s.key] === undefined);
+        return idx < 0 ? STEPS.length : idx;
+      })()
+    : 0;
+
+  const [messages, setMessages] = useState(() => {
+    if (draft && firstUnanswered < STEPS.length) {
+      return [
+        { id: 0, type: 'steward', text: 'Picked up where you left off.' },
+        { id: 1, type: 'steward', text: STEPS[firstUnanswered].getMessage(draft) },
+      ];
+    }
+    return [{ id: 0, type: 'steward', text: STEPS[0].getMessage({}) }];
+  });
+  const [step, setStep] = useState(firstUnanswered < STEPS.length ? firstUnanswered : STEPS.length);
+  const [answers, setAnswers] = useState(draft ?? {});
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef(null);
+
+  // Edge case: all steps were already answered in the draft.
+  // Replace Onboarding with Synthesis so Back doesn't return here.
+  useEffect(() => {
+    if (draft && firstUnanswered >= STEPS.length) {
+      navigation.replace('Synthesis', { profile: draft });
+    }
+  }, [draft, firstUnanswered, navigation]);
 
   const scrollToBottom = () => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
@@ -97,6 +122,7 @@ export default function OnboardingScreen({ navigation }) {
     const currentStep = STEPS[step];
     const newAnswers = { ...answers, [currentStep.key]: value };
     setAnswers(newAnswers);
+    saveOnboardingDraft(newAnswers); // fire-and-forget, no UI
 
     // Show user's response
     const userText = displayValue || formatUserAnswer(currentStep.key, value);

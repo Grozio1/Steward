@@ -11,7 +11,7 @@ import { COLORS, FONTS, SIZES, SPACING, RADIUS, SHADOW } from '../../constants/b
 import { generateSynthesis, generatePlan } from '../../ai/claude';
 import { toMonthly } from '../../ai/stub';
 import { classifyLifeStage, parsePrioritySignal } from '../../ai/classification';
-import { saveProfile, savePlan, currentMonth, formatCurrency } from '../../data/store';
+import { saveProfile, savePlan, currentMonth, formatCurrency, clearOnboardingDraft } from '../../data/store';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 import FlameIcon from '../../components/FlameIcon';
@@ -74,6 +74,7 @@ export default function SynthesisScreen({ route, navigation }) {
     await saveProfile(enrichedProfile);
     const plan = await generatePlan(enrichedProfile);
     await savePlan(plan, currentMonth());
+    await clearOnboardingDraft(); // only after both saves succeed
 
     if (solvency.state === 'insolvent') {
       navigation.reset({
