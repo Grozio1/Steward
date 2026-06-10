@@ -1020,12 +1020,16 @@ export default function DashboardScreen({ navigation }) {
         ) : null}
 
         {/* Retirement outlook — Pro entry, shown when user has investments */}
-        {/* TODO: restore Pro gate before launch */ profile?.investments?.length > 0 && (
+        {profile?.investments?.length > 0 && (
           <TouchableOpacity
             style={styles.storyRow}
             onPress={async () => {
-              const fresh = await getProfile();
-              navigation.navigate('Retirement', { profile: fresh ?? profile });
+              if (isProTier(profile)) {
+                const fresh = await getProfile();
+                navigation.navigate('Retirement', { profile: fresh ?? profile });
+              } else {
+                navigation.navigate('Paywall', { feature: 'retirement' });
+              }
             }}
             activeOpacity={0.7}
           >
