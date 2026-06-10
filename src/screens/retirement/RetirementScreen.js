@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SPACING, RADIUS } from '../../constants/brand';
 import { getProfile, formatCurrency } from '../../data/store';
 import { toMonthly, getAge } from '../../ai/stub';
+import { isProTier } from '../../utils/tier';
 import StewardText from '../../components/StewardText';
 import StewardCard from '../../components/StewardCard';
 
@@ -582,6 +583,31 @@ export default function RetirementScreen({ route, navigation }) {
     );
   }
 
+  if (!isProTier(profile)) {
+    return (
+      <SafeAreaView style={s.root} edges={['top', 'left', 'right']}>
+        {headerContent}
+        <View style={s.paywallWrap}>
+          <StewardCard variant="parchment" style={s.paywallCard}>
+            <StewardText variant="bodyMedium" style={{ marginBottom: SPACING.sm }}>
+              Retirement Outlook is a Pro feature.
+            </StewardText>
+            <StewardText variant="body" style={{ color: COLORS.placeholder, marginBottom: SPACING.md, lineHeight: SIZES.base * 1.6 }}>
+              Upgrade to see your trajectory, Social Security timing, and withdrawal planning.
+            </StewardText>
+            <TouchableOpacity
+              style={s.paywallBtn}
+              onPress={() => navigation.navigate('Paywall', { feature: 'retirement' })}
+              activeOpacity={0.8}
+            >
+              <StewardText style={s.paywallBtnLabel}>Learn about Pro →</StewardText>
+            </TouchableOpacity>
+          </StewardCard>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const tabContent = [
     <TrajectoryTab    key="traj" profile={profile} monthlyIncome={monthlyIncome} />,
     <SocialSecurityTab key="ss"  lifeStage={profile?.lifeStage} />,
@@ -732,6 +758,25 @@ const s = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // Paywall fallback (Layer 2 gate)
+  paywallWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: SPACING.lg,
+  },
+  paywallCard: {
+    gap: SPACING.xs,
+  },
+  paywallBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: SPACING.xs,
+  },
+  paywallBtnLabel: {
+    fontFamily: FONTS.sans.medium,
+    fontSize: SIZES.base,
+    color: COLORS.forest,
   },
 
   // Shared scroll padding
