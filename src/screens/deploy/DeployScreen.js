@@ -191,7 +191,10 @@ export default function DeployScreen() {
   );
 
   const handleGenerate = async () => {
-    if (!profile) return;
+    if (!profile) {
+      Alert.alert('Profile needed', 'Set up your profile first — your plan builds from it.');
+      return;
+    }
     setGenerating(true);
     try {
       const newPlan = await generatePlan(profile);
