@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "steward",
+    "name": "Steward: Money Companion",
     "slug": "steward",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,7 +13,9 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.wortmanip.steward",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
