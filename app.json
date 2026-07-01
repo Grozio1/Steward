@@ -25,7 +25,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.wortmanip.steward"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,6 +35,9 @@
       "eas": {
         "projectId": "c3204937-8a00-48e4-8ffe-24d818951dd4"
       }
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
