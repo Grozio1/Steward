@@ -10,9 +10,8 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const SONNET = 'claude-sonnet-4-20250514';
-const API_KEY = process.env.EXPO_PUBLIC_ANTHROPIC_KEY;
+const ANTHROPIC_API_URL = 'https://steward-proxy-production-d89e.up.railway.app/steward/claude';
+const SONNET = 'claude-sonnet-5';
 
 // ─── Public entry point ───────────────────────────────────────────────────────
 
@@ -420,8 +419,6 @@ Return ONLY a JSON array. No markdown, no preamble. Each element:
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
         model: SONNET,
